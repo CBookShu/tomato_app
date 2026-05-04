@@ -9,9 +9,9 @@ const isDev = !app.isPackaged;
 
 export function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
-    width: 900,
+    width: 1000,
     height: 650,
-    minWidth: 700,
+    minWidth: 800,
     minHeight: 500,
     titleBarStyle: 'hiddenInset',
     webPreferences: {
