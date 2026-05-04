@@ -7,13 +7,14 @@ import { useState } from 'react';
 
 interface TaskItemProps {
   task: Task;
+  isSelected?: boolean;
   onCheck: (id: string) => void;
   onStart: (id: string) => void;
   onEdit: (id: string, title: string) => void;
   onDelete: (id: string) => void;
 }
 
-export function TaskItem({ task, onCheck, onStart, onEdit, onDelete }: TaskItemProps) {
+export function TaskItem({ task, isSelected, onCheck, onStart, onEdit, onDelete }: TaskItemProps) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(task.title);
   const isCompleted = task.status === 'completed';
@@ -30,6 +31,7 @@ export function TaskItem({ task, onCheck, onStart, onEdit, onDelete }: TaskItemP
       className={cn(
         'group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors',
         isCompleted && 'opacity-50',
+        isSelected && 'bg-tomato/10 dark:bg-tomato/20',
       )}
     >
       <GripVertical className="h-4 w-4 text-gray-300 opacity-0 group-hover:opacity-100 cursor-grab shrink-0" />
