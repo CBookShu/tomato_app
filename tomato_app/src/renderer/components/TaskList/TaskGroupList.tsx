@@ -3,7 +3,6 @@ import { TaskGroupHeader } from './TaskGroupHeader.js';
 import { TaskItem } from './TaskItem.js';
 import { TaskForm } from './TaskForm.js';
 import { useTaskStore } from '@/stores/task-store.js';
-import { useTimer } from '@/hooks/useTimer.js';
 import { Button } from '@/components/ui/button.js';
 import {
   Dialog,
@@ -17,9 +16,8 @@ import { Plus } from 'lucide-react';
 
 export function TaskGroupList() {
   const groups = useTaskStore((s) => s.groups);
-  const { getTasksByGroup, addTask, removeTask, updateTask, addGroup, removeGroup, updateGroup } =
+  const { getTasksByGroup, addTask, addGroup, removeGroup, updateGroup } =
     useTaskStore();
-  const { start } = useTimer();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -47,10 +45,6 @@ export function TaskGroupList() {
     }
   };
 
-  const handleStartTask = (taskId: string) => {
-    start(taskId);
-  };
-
   return (
     <div className="flex flex-col gap-1">
       {groups.map((group) => (
@@ -70,15 +64,6 @@ export function TaskGroupList() {
                 <TaskItem
                   key={task.id}
                   task={task}
-                  onCheck={(id) =>
-                    updateTask(id, {
-                      status: task.status === 'completed' ? 'todo' : 'completed',
-                      completedAt: task.status !== 'completed' ? new Date().toISOString() : undefined,
-                    })
-                  }
-                  onStart={handleStartTask}
-                  onEdit={(id, title) => updateTask(id, { title })}
-                  onDelete={(id) => removeTask(id)}
                 />
               ))}
               {addingTo === group.id && (

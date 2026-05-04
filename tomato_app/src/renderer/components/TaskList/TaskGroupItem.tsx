@@ -2,7 +2,6 @@ import type { TaskGroup, Task } from '@pomodoro/core';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { TaskItem } from './TaskItem.js';
 import { useTaskStore } from '@/stores/task-store.js';
-import { useTimer } from '@/hooks/useTimer.js';
 
 interface TaskGroupItemProps {
   group: TaskGroup;
@@ -13,33 +12,9 @@ export function TaskGroupItem({ group, tasks }: TaskGroupItemProps) {
   const collapsedGroups = useTaskStore((s) => s.collapsedGroups);
   const toggleGroupCollapse = useTaskStore((s) => s.toggleGroupCollapse);
   const selectedTaskId = useTaskStore((s) => s.selectedTaskId);
-  const { updateTask, removeTask } = useTaskStore();
-  const { start } = useTimer();
 
   const isCollapsed = collapsedGroups.has(group.id);
   const completedCount = tasks.filter((t) => t.status === 'completed').length;
-
-  const handleCheck = (id: string) => {
-    const task = tasks.find((t) => t.id === id);
-    if (task) {
-      updateTask(id, {
-        status: task.status === 'completed' ? 'todo' : 'completed',
-        completedAt: task.status !== 'completed' ? new Date().toISOString() : undefined,
-      });
-    }
-  };
-
-  const handleStart = (id: string) => {
-    start(id);
-  };
-
-  const handleEdit = (id: string, title: string) => {
-    updateTask(id, { title });
-  };
-
-  const handleDelete = (id: string) => {
-    removeTask(id);
-  };
 
   return (
     <div className="mb-1">
@@ -73,10 +48,6 @@ export function TaskGroupItem({ group, tasks }: TaskGroupItemProps) {
               key={task.id}
               task={task}
               isSelected={selectedTaskId === task.id}
-              onCheck={handleCheck}
-              onStart={handleStart}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
             />
           ))}
         </div>

@@ -4,26 +4,42 @@ import { cn } from '@/lib/utils.js';
 import type { Task } from '@pomodoro/core';
 import { GripVertical, Pencil, Trash2, Play } from 'lucide-react';
 import { useState } from 'react';
+import { useTaskStore } from '@/stores/task-store.js';
+import { useTimer } from '@/hooks/useTimer.js';
 
 interface TaskItemProps {
   task: Task;
   isSelected?: boolean;
-  onCheck: (id: string) => void;
-  onStart: (id: string) => void;
-  onEdit: (id: string, title: string) => void;
-  onDelete: (id: string) => void;
 }
 
-export function TaskItem({ task, isSelected, onCheck, onStart, onEdit, onDelete }: TaskItemProps) {
+export function TaskItem({ task, isSelected }: TaskItemProps) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(task.title);
   const isCompleted = task.status === 'completed';
 
-  const handleSave = () => {
+  const { updateTask, removeTask } = useTaskStore();
+  const { start } = useTimer();
+
+  const handleCheck = () => {
+    updateTask(task.id, {
+      status: task.status === 'completed' ? 'todo' : 'completed',
+      completedAt: task.status !== 'completed' ? new Date().toISOString() : undefined,
+    });
+  };
+
+  const handleStart = () => {
+    start(task.id);
+  };
+
+  const handleEdit = () => {
     if (title.trim()) {
-      onEdit(task.id, title.trim());
+      updateTask(task.id, { title: title.trim() });
       setEditing(false);
     }
+  };
+
+  const handleDelete = () => {
+    removeTask(task.id);
   };
 
   return (
@@ -37,7 +53,7 @@ export function TaskItem({ task, isSelected, onCheck, onStart, onEdit, onDelete 
       <GripVertical className="h-4 w-4 text-gray-300 opacity-0 group-hover:opacity-100 cursor-grab shrink-0" />
       <Checkbox
         checked={isCompleted}
-        onCheckedChange={() => onCheck(task.id)}
+        onCheckedChange={handleCheck}
         className="shrink-0"
       />
       {editing ? (
@@ -45,9 +61,9 @@ export function TaskItem({ task, isSelected, onCheck, onStart, onEdit, onDelete 
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          onBlur={handleSave}
+          onBlur={handleEdit}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') handleSave();
+            if (e.key === 'Enter') handleEdit();
             if (e.key === 'Escape') setEditing(false);
           }}
           className="flex-1 bg-transparent border-b border-tomato px-1 text-sm outline-none"
@@ -64,13 +80,13 @@ export function TaskItem({ task, isSelected, onCheck, onStart, onEdit, onDelete 
         {task.completedPomodoros > 0 ? `x${task.completedPomodoros}` : ''}
       </span>
       <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onStart(task.id)}>
+        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleStart}>
           <Play className="h-3 w-3" />
         </Button>
         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditing(true)}>
           <Pencil className="h-3 w-3" />
         </Button>
-        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onDelete(task.id)}>
+        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleDelete}>
           <Trash2 className="h-3 w-3" />
         </Button>
       </div>
