@@ -25,7 +25,7 @@ export default function App() {
     async function loadData() {
       taskStore.setLoading(true);
       try {
-        const [tasks, groups] = await Promise.all([
+        const [tasks = [], groups = []] = await Promise.all([
           invoke(IPC.TASK_GET_ALL),
           invoke(IPC.GROUP_GET_ALL),
         ]);
@@ -37,7 +37,7 @@ export default function App() {
 
       statsStore.setLoading(true);
       try {
-        const [today, weekly] = await Promise.all([
+        const [today, weekly = []] = await Promise.all([
           invoke(IPC.STATS_GET_DAILY, { date: getToday() }),
           invoke(IPC.STATS_GET_WEEKLY, { endDate: getToday() }),
         ]);
