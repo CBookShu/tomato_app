@@ -5,6 +5,8 @@ interface TaskStoreState {
   tasks: Task[];
   groups: TaskGroup[];
   loading: boolean;
+  selectedTaskId: string | null;
+  collapsedGroups: Set<string>;
 
   setTasks: (tasks: Task[]) => void;
   setGroups: (groups: TaskGroup[]) => void;
@@ -17,12 +19,17 @@ interface TaskStoreState {
   getTasksByGroup: (groupId: string) => Task[];
   getTasksByStatus: (status: TaskStatus) => Task[];
   setLoading: (loading: boolean) => void;
+  selectTask: (id: string | null) => void;
+  toggleGroupCollapse: (groupId: string) => void;
+  getSelectedTask: () => Task | null;
 }
 
 export const useTaskStore = create<TaskStoreState>((set, get) => ({
   tasks: [],
   groups: [],
   loading: false,
+  selectedTaskId: null,
+  collapsedGroups: new Set<string>(),
 
   setTasks: (tasks) => set({ tasks }),
   setGroups: (groups) => set({ groups }),
@@ -45,4 +52,19 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
   getTasksByStatus: (status) => get().tasks.filter((t) => t.status === status),
 
   setLoading: (loading) => set({ loading }),
+
+  selectTask: (id) => set({ selectedTaskId: id }),
+
+  toggleGroupCollapse: (groupId) =>
+    set((s) => {
+      const next = new Set(s.collapsedGroups);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return { collapsedGroups: next };
+    }),
+
+  getSelectedTask: () => get().tasks.find((t) => t.id === get().selectedTaskId) ?? null,
 }));
