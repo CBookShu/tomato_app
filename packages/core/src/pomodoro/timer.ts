@@ -1,7 +1,13 @@
 import { TimerState, TimerStatus, PomodoroConfig, DEFAULT_POMODORO_CONFIG } from '../types/timer.js';
 import { transition } from './state-machine.js';
 
-type EventName = 'tick' | 'statusChange' | 'complete';
+interface TimerEventPayload {
+  tick: [remainingTime: number];
+  statusChange: [status: TimerStatus];
+  complete: [completionType: 'work' | 'break'];
+}
+
+type EventName = keyof TimerEventPayload;
 
 export class PomodoroTimer {
   private state: TimerState;
@@ -48,15 +54,15 @@ export class PomodoroTimer {
     return this.state;
   }
 
-  on(event: EventName, callback: (...args: any[]) => void): void {
+  on<E extends EventName>(event: E, callback: (...args: TimerEventPayload[E]) => void): void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
-    this.listeners.get(event)!.add(callback);
+    this.listeners.get(event)!.add(callback as (...args: any[]) => void);
   }
 
-  off(event: EventName, callback: (...args: any[]) => void): void {
-    this.listeners.get(event)?.delete(callback);
+  off<E extends EventName>(event: E, callback: (...args: TimerEventPayload[E]) => void): void {
+    this.listeners.get(event)?.delete(callback as (...args: any[]) => void);
   }
 
   destroy(): void {
@@ -106,7 +112,7 @@ export class PomodoroTimer {
     }
   }
 
-  private emit(event: EventName, ...args: any[]): void {
+  private emit<E extends EventName>(event: E, ...args: TimerEventPayload[E]): void {
     this.listeners.get(event)?.forEach((cb) => cb(...args));
   }
 }

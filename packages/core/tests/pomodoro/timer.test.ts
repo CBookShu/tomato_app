@@ -142,6 +142,27 @@ describe('PomodoroTimer', () => {
     expect(timer.getState().remainingTime).toBe(5 * 60);
   });
 
+  test('skip during a long-break-due cycle emits complete and enters long-break', () => {
+    const timer = new PomodoroTimer({ longBreakInterval: 2 });
+
+    // Complete first cycle
+    timer.start();
+    jest.advanceTimersByTime(25 * 60 * 1000 + 100);
+    jest.advanceTimersByTime(5 * 60 * 1000 + 100);
+
+    // Start second cycle and skip
+    timer.start();
+    jest.advanceTimersByTime(5000);
+
+    const onComplete = jest.fn();
+    timer.on('complete', onComplete);
+
+    timer.skip();
+
+    expect(timer.getState().status).toBe('long-break');
+    expect(onComplete).toHaveBeenCalledWith('work');
+  });
+
   test('destroy cleans up the interval', () => {
     const timer = new PomodoroTimer();
     timer.start();
