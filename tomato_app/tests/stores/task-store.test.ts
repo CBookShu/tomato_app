@@ -21,7 +21,13 @@ const mockGroup = (id: string, name: string) => ({
 
 describe('taskStore', () => {
   beforeEach(() => {
-    useTaskStore.setState({ tasks: [], groups: [], loading: false });
+    useTaskStore.setState({
+      tasks: [],
+      groups: [],
+      loading: false,
+      selectedTaskId: null,
+      collapsedGroups: new Set<string>(),
+    });
   });
 
   test('addTask adds a task to the list', () => {
@@ -60,5 +66,60 @@ describe('taskStore', () => {
     useTaskStore.getState().addGroup(mockGroup('g1', 'Work'));
     useTaskStore.getState().removeGroup('g1');
     expect(useTaskStore.getState().groups).toHaveLength(0);
+  });
+
+  describe('selectTask', () => {
+    test('sets selectedTaskId when selecting a task', () => {
+      useTaskStore.getState().addTask(mockTask('t1'));
+      useTaskStore.getState().selectTask('t1');
+      expect(useTaskStore.getState().selectedTaskId).toBe('t1');
+    });
+
+    test('clears selectedTaskId when passing null', () => {
+      useTaskStore.getState().addTask(mockTask('t1'));
+      useTaskStore.getState().selectTask('t1');
+      useTaskStore.getState().selectTask(null);
+      expect(useTaskStore.getState().selectedTaskId).toBeNull();
+    });
+  });
+
+  describe('getSelectedTask', () => {
+    test('returns null when no task is selected', () => {
+      const selected = useTaskStore.getState().getSelectedTask();
+      expect(selected).toBeNull();
+    });
+
+    test('returns the selected task when one is selected', () => {
+      useTaskStore.getState().addTask(mockTask('t1'));
+      useTaskStore.getState().selectTask('t1');
+      const selected = useTaskStore.getState().getSelectedTask();
+      expect(selected?.id).toBe('t1');
+    });
+
+    test('returns null when selected task does not exist', () => {
+      useTaskStore.getState().selectTask('nonexistent');
+      const selected = useTaskStore.getState().getSelectedTask();
+      expect(selected).toBeNull();
+    });
+  });
+
+  describe('toggleGroupCollapse', () => {
+    test('adds group to collapsedGroups when not collapsed', () => {
+      useTaskStore.getState().toggleGroupCollapse('g1');
+      expect(useTaskStore.getState().collapsedGroups.has('g1')).toBe(true);
+    });
+
+    test('removes group from collapsedGroups when already collapsed', () => {
+      useTaskStore.getState().toggleGroupCollapse('g1');
+      useTaskStore.getState().toggleGroupCollapse('g1');
+      expect(useTaskStore.getState().collapsedGroups.has('g1')).toBe(false);
+    });
+
+    test('toggles multiple groups independently', () => {
+      useTaskStore.getState().toggleGroupCollapse('g1');
+      useTaskStore.getState().toggleGroupCollapse('g2');
+      expect(useTaskStore.getState().collapsedGroups.has('g1')).toBe(true);
+      expect(useTaskStore.getState().collapsedGroups.has('g2')).toBe(true);
+    });
   });
 });

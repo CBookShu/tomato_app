@@ -66,5 +66,8 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       return { collapsedGroups: next };
     }),
 
-  getSelectedTask: () => get().tasks.find((t) => t.id === get().selectedTaskId) ?? null,
+  getSelectedTask: () => {
+    const { tasks, selectedTaskId } = get();
+    return tasks.find((t) => t.id === selectedTaskId) ?? null;
+  },
 }));
