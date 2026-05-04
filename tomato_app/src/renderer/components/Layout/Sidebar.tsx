@@ -18,10 +18,16 @@ const tabs: { id: TabId; icon: React.ReactNode; label: string }[] = [
 
 export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   return (
-    <div className="w-[60px] bg-gray-50 dark:bg-gray-900 flex flex-col items-center py-4 gap-2 border-r border-gray-200 dark:border-gray-700">
+    <div
+      role="tablist"
+      className="w-[60px] bg-gray-50 dark:bg-gray-900 flex flex-col items-center py-4 gap-2 border-r border-gray-200 dark:border-gray-700"
+    >
       {tabs.map((tab) => (
         <button
           key={tab.id}
+          role="tab"
+          aria-selected={activeTab === tab.id}
+          aria-label={tab.label}
           onClick={() => onTabChange(tab.id)}
           className={cn(
             'w-10 h-10 rounded-lg flex items-center justify-center transition-colors',
@@ -29,7 +35,6 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
               ? 'bg-tomato text-white'
               : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
           )}
-          title={tab.label}
         >
           {tab.icon}
         </button>
