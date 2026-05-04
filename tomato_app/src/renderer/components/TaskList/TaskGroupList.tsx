@@ -73,7 +73,18 @@ export function TaskGroupList() {
           )}
         </div>
       ))}
-      <Button variant="ghost" size="sm" className="self-start mt-2" onClick={() => {}}>
+      <Button variant="ghost" size="sm" className="self-start mt-2" onClick={async () => {
+  const name = prompt('分组名称:');
+  if (name?.trim()) {
+    addGroup({
+      id: crypto.randomUUID(),
+      name: name.trim(),
+      taskOrder: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }
+}}>
         <Plus className="h-4 w-4" />
         新建分组
       </Button>
