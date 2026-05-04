@@ -158,6 +158,10 @@ describe('TaskManager', () => {
     expect(allTasks.filter((t) => t.groupId === group.id)).toHaveLength(0);
   });
 
+  test('deleteGroup throws when trying to delete default group', async () => {
+    await expect(manager.deleteGroup('default')).rejects.toThrow('Cannot delete the default group');
+  });
+
   test('incrementPomodoro adds 1 to task completedPomodoros and promotes status', async () => {
     const task = await manager.createTask({ title: 'Code review' });
     expect(task.status).toBe('todo');

@@ -2,13 +2,14 @@ import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { eq } from 'drizzle-orm';
 import { taskGroups } from './schema.js';
 import { TaskGroup } from '../types/task.js';
+import { safeJsonParse } from '../utils/json-utils.js';
 
 function rowToGroup(row: typeof taskGroups.$inferSelect): TaskGroup {
   return {
     id: row.id,
     name: row.name,
     color: row.color ?? undefined,
-    taskOrder: JSON.parse(row.taskOrder),
+    taskOrder: safeJsonParse(row.taskOrder, []),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

@@ -2,6 +2,7 @@ import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { eq } from 'drizzle-orm';
 import { tasks } from './schema.js';
 import { Task } from '../types/task.js';
+import { safeJsonParse } from '../utils/json-utils.js';
 
 function rowToTask(row: typeof tasks.$inferSelect): Task {
   return {
@@ -12,7 +13,7 @@ function rowToTask(row: typeof tasks.$inferSelect): Task {
     status: row.status as Task['status'],
     groupId: row.groupId ?? undefined,
     lastPomodoroTime: row.lastPomodoroTime ?? undefined,
-    tags: row.tags ? JSON.parse(row.tags) : undefined,
+    tags: row.tags ? safeJsonParse<string[]>(row.tags, []) : undefined,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     completedAt: row.completedAt ?? undefined,

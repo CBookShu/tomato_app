@@ -2,13 +2,14 @@ import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { eq, gte, lte, and } from 'drizzle-orm';
 import { dailyStats } from './schema.js';
 import { DailyStats } from '../types/stats.js';
+import { safeJsonParse } from '../utils/json-utils.js';
 
 function rowToStats(row: typeof dailyStats.$inferSelect): DailyStats {
   return {
     date: row.date,
     totalPomodoros: row.totalPomodoros,
     completedTasks: row.completedTasks,
-    tasks: JSON.parse(row.tasks),
+    tasks: safeJsonParse(row.tasks, []),
   };
 }
 

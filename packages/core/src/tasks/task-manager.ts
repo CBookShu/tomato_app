@@ -181,6 +181,9 @@ export class TaskManager {
   }
 
   async deleteGroup(id: string): Promise<void> {
+    if (id === DEFAULT_GROUP_ID) {
+      throw new Error('Cannot delete the default group');
+    }
     const tasks = await this.taskRepo.findByGroup(id);
     for (const task of tasks) {
       await this.taskRepo.delete(task.id);
