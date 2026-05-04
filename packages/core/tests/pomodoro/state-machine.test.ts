@@ -1,7 +1,7 @@
 import { transition } from '../../src/pomodoro/state-machine.js';
-import { DEFAULT_POMODORO_CONFIG, PomodoroConfig, TimerState } from '../../src/types/timer.js';
+import { DEFAULT_POMODORO_CONFIG, TimerState } from '../../src/types/timer.js';
 
-const config = DEFAULT_POMODORO_CONFIG as PomodoroConfig;
+const config = DEFAULT_POMODORO_CONFIG;
 const idle: TimerState = { status: 'idle', remainingTime: 0, currentCycle: 0 };
 
 describe('transition', () => {
@@ -73,6 +73,12 @@ describe('transition', () => {
       expect(result.status).toBe('long-break');
       expect(result.remainingTime).toBe(config.longBreakDuration);
     });
+
+    test('other events are ignored from working', () => {
+      const state: TimerState = { status: 'working', remainingTime: 500, currentCycle: 1 };
+      expect(transition(state, 'start', config)).toEqual(state);
+      expect(transition(state, 'resume', config)).toEqual(state);
+    });
   });
 
   describe('from paused', () => {
@@ -112,6 +118,14 @@ describe('transition', () => {
       expect(result.status).toBe('idle');
       expect(result.remainingTime).toBe(0);
     });
+
+    test('other events are ignored from breaking', () => {
+      const state: TimerState = { status: 'breaking', remainingTime: 120, currentCycle: 1 };
+      expect(transition(state, 'start', config)).toEqual(state);
+      expect(transition(state, 'pause', config)).toEqual(state);
+      expect(transition(state, 'resume', config)).toEqual(state);
+      expect(transition(state, 'stop', config)).toEqual(state);
+    });
   });
 
   describe('from long-break', () => {
@@ -129,6 +143,14 @@ describe('transition', () => {
       expect(result.status).toBe('idle');
       expect(result.remainingTime).toBe(0);
       expect(result.currentCycle).toBe(0);
+    });
+
+    test('other events are ignored from long-break', () => {
+      const state: TimerState = { status: 'long-break', remainingTime: 600, currentCycle: 4 };
+      expect(transition(state, 'start', config)).toEqual(state);
+      expect(transition(state, 'pause', config)).toEqual(state);
+      expect(transition(state, 'resume', config)).toEqual(state);
+      expect(transition(state, 'stop', config)).toEqual(state);
     });
   });
 
