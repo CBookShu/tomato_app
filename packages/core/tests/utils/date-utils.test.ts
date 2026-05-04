@@ -8,7 +8,7 @@ describe('getToday', () => {
 
   test('returns the current date', () => {
     const today = getToday();
-    const expected = new Date().toISOString().slice(0, 10);
+    const expected = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
     expect(today).toBe(expected);
   });
 });
