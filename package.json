@@ -2,7 +2,8 @@
   "name": "pomodoro-app",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "tomato_app"
   ],
   "scripts": {
     "test": "npm run test --workspaces --if-present",
