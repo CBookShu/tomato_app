@@ -6,6 +6,9 @@ let mainWindow: BrowserWindow | null = null;
 
 app.whenReady().then(() => {
   mainWindow = createWindow();
+}).catch((err) => {
+  console.error('Failed to create window:', err);
+  app.quit();
 });
 
 app.on('window-all-closed', () => {

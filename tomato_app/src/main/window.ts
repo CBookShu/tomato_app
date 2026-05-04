@@ -18,10 +18,14 @@ export function createWindow(): BrowserWindow {
   });
 
   if (isDev) {
-    win.loadURL('http://localhost:5173');
+    win.loadURL('http://localhost:5173').catch((err) => {
+      console.error('Failed to load dev server:', err.message);
+    });
     win.webContents.openDevTools({ mode: 'detach' });
   } else {
-    win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+    win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html')).catch((err) => {
+      console.error('Failed to load renderer:', err.message);
+    });
   }
 
   return win;
