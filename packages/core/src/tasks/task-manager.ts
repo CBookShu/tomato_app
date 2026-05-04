@@ -145,10 +145,10 @@ export class TaskManager {
     }
 
     const newGroup = await this.groupRepo.findById(newGroupId);
-    if (newGroup) {
-      const updated = addTaskAtPosition(newGroup, taskId);
-      await this.groupRepo.update(newGroupId, { taskOrder: updated.taskOrder, updatedAt: updated.updatedAt });
-    }
+    if (!newGroup) throw new Error(`Target group ${newGroupId} not found`);
+
+    const updated = addTaskAtPosition(newGroup, taskId);
+    await this.groupRepo.update(newGroupId, { taskOrder: updated.taskOrder, updatedAt: updated.updatedAt });
 
     return this.taskRepo.update(taskId, { groupId: newGroupId });
   }

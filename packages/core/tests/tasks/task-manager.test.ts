@@ -158,12 +158,14 @@ describe('TaskManager', () => {
     expect(allTasks.filter((t) => t.groupId === group.id)).toHaveLength(0);
   });
 
-  test('incrementPomodoro adds 1 to task completedPomodoros', async () => {
+  test('incrementPomodoro adds 1 to task completedPomodoros and promotes status', async () => {
     const task = await manager.createTask({ title: 'Code review' });
+    expect(task.status).toBe('todo');
     const updated = await manager.incrementPomodoro(task.id, '2026-05-04');
 
     expect(updated.completedPomodoros).toBe(1);
     expect(updated.lastPomodoroTime).toBe('2026-05-04');
+    expect(updated.status).toBe('in-progress');
   });
 
   test('getTasksByStatus filters correctly', async () => {
@@ -174,5 +176,19 @@ describe('TaskManager', () => {
     const todos = await manager.getTasksByStatus('todo');
     expect(todos).toHaveLength(1);
     expect(todos[0].id).toBe(t1.id);
+  });
+
+  test('getAllTasks returns all tasks', async () => {
+    await manager.createTask({ title: 'Task A' });
+    await manager.createTask({ title: 'Task B' });
+    const all = await manager.getAllTasks();
+    expect(all).toHaveLength(2);
+  });
+
+  test('renameGroup updates group name', async () => {
+    const group = await manager.createGroup({ name: 'Original' });
+    const updated = await manager.renameGroup(group.id, 'Renamed');
+    expect(updated.name).toBe('Renamed');
+    expect(updated.id).toBe(group.id);
   });
 });
