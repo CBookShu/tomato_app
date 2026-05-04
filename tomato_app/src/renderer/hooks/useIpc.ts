@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { IpcChannelMap } from '@shared/ipc-channels.js';
+import type { IpcChannelMap, IpcEventChannel } from '@shared/ipc-channels.js';
 
 export function useIpc() {
   const invoke = useCallback(
@@ -12,7 +12,7 @@ export function useIpc() {
     [],
   );
 
-  const listen = useCallback((channel: string, callback: (...args: unknown[]) => void) => {
+  const listen = useCallback((channel: IpcEventChannel, callback: (...args: unknown[]) => void) => {
     return window.electronAPI.on(channel, callback);
   }, []);
 

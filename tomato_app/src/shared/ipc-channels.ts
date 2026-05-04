@@ -1,6 +1,5 @@
 import type { Task, TaskGroup, NewTask, NewTaskGroup, TaskStatus } from '@pomodoro/core';
-import type { DailyStats, MonthlyStats } from '@pomodoro/core';
-import type { PomodoroConfig } from '@pomodoro/core';
+import type { DailyStats, MonthlyStats, TimerState } from '@pomodoro/core';
 
 // Channel name constants
 export const IPC = {
@@ -53,7 +52,7 @@ export interface IpcChannelMap {
   [IPC.TIMER_RESUME]: { request: void; response: void };
   [IPC.TIMER_STOP]: { request: void; response: void };
   [IPC.TIMER_SKIP]: { request: void; response: void };
-  [IPC.TIMER_STATE]: { request: void; response: import('@pomodoro/core').TimerState };
+  [IPC.TIMER_STATE]: { request: void; response: TimerState };
 
   [IPC.TASK_CREATE]: { request: { input: NewTask; referenceTaskId?: string; insertAfter?: boolean }; response: Task };
   [IPC.TASK_GET]: { request: { id: string }; response: Task | null };
@@ -87,6 +86,8 @@ export interface IpcChannelMap {
   [IPC.TIMER_COMPLETE]: { request: void; response: (type: 'work' | 'break') => void };
 }
 
+export type IpcEventChannel = typeof IPC.TIMER_TICK | typeof IPC.TIMER_STATUS_CHANGE | typeof IPC.TIMER_COMPLETE;
+
 declare global {
   interface Window {
     electronAPI: {
@@ -94,7 +95,7 @@ declare global {
         channel: C,
         ...args: IpcChannelMap[C]['request'] extends void ? [] : [IpcChannelMap[C]['request']]
       ): Promise<IpcChannelMap[C]['response']>;
-      on(channel: string, callback: (...args: unknown[]) => void): () => void;
+      on(channel: IpcEventChannel, callback: (...args: unknown[]) => void): () => void;
     };
   }
 }
