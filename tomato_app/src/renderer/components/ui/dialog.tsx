@@ -33,3 +33,11 @@ export const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLD
 export const DialogTitle = ({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
   <h2 className={cn('text-lg font-semibold', className)} {...props} />
 );
+
+export const DialogContent = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn('', className)} {...props} />
+);
+
+export const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn('flex justify-end gap-2 mt-4', className)} {...props} />
+);

@@ -1,7 +1,7 @@
 import type { TaskGroup, Task } from '@pomodoro/core';
-import { ChevronDown, ChevronRight, Plus, MoreHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button.js';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 interface TaskGroupHeaderProps {
   group: TaskGroup;
@@ -24,8 +24,20 @@ export function TaskGroupHeader({
 }: TaskGroupHeaderProps) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(group.name);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const isDefault = group.id === 'default';
   const completed = tasks.filter((t) => t.status === 'completed').length;
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleSave = () => {
     if (name.trim()) {
@@ -69,9 +81,35 @@ export function TaskGroupHeader({
         <Plus className="h-3.5 w-3.5" />
       </Button>
       {!isDefault && (
-        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onDelete}>
-          <MoreHorizontal className="h-3.5 w-3.5" />
-        </Button>
+        <div className="relative" ref={menuRef}>
+          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setMenuOpen(!menuOpen)}>
+            <MoreHorizontal className="h-3.5 w-3.5" />
+          </Button>
+          {menuOpen && (
+            <div className="absolute right-0 top-full mt-1 w-28 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-10">
+              <button
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => {
+                  setEditing(true);
+                  setMenuOpen(false);
+                }}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                重命名
+              </button>
+              <button
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => {
+                  onDelete();
+                  setMenuOpen(false);
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                删除
+              </button>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

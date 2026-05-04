@@ -12,6 +12,16 @@ export function SettingsPage() {
   const { settings, setAll, set } = useSettingsStore();
   const [loaded, setLoaded] = useState(false);
 
+  // Apply dark mode on mount and when settings change
+  useEffect(() => {
+    const isDark = settings['dark_mode'] === 'true';
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [settings['dark_mode']]);
+
   useEffect(() => {
     async function load() {
       const all = await invoke(IPC.SETTINGS_GET_ALL);

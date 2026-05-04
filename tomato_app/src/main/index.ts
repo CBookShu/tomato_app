@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import { createWindow } from './window.js';
 import { registerIpcHandlers } from './ipc-handlers.js';
 import { initDatabase } from './database.js';
-import { createTray, updateTrayIcon } from './tray.js';
+import { createTray, updateTrayIcon, updateTrayTime } from './tray.js';
 import { notifyPomodoroComplete, notifyBreakComplete } from './notifications.js';
 import { registerShortcuts, unregisterShortcuts } from './shortcuts.js';
 import { IPC } from '../shared/ipc-channels.js';
@@ -26,6 +26,11 @@ app.whenReady().then(async () => {
 
   ipcMain.on(IPC.TIMER_STATUS_CHANGE, (_event, status: string) => {
     updateTrayIcon(status);
+  });
+
+  ipcMain.on(IPC.TIMER_TICK, (_event, remainingTime: number) => {
+    // Get current status from timer state - we'll need to track this
+    updateTrayTime('working', remainingTime);
   });
 
   registerShortcuts({

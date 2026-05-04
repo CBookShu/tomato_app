@@ -1,5 +1,9 @@
 import { BrowserWindow, app } from 'electron';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const isDev = !app.isPackaged;
 
@@ -11,7 +15,7 @@ export function createWindow(): BrowserWindow {
     minHeight: 500,
     titleBarStyle: 'hiddenInset',
     webPreferences: {
-      preload: path.join(__dirname, 'preload', 'index.js'),
+      preload: path.join(__dirname, '..', 'preload', 'index.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -23,7 +27,7 @@ export function createWindow(): BrowserWindow {
     });
     win.webContents.openDevTools({ mode: 'detach' });
   } else {
-    win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html')).catch((err) => {
+    win.loadFile(path.join(__dirname, '..', '..', 'renderer', 'index.html')).catch((err) => {
       console.error('Failed to load renderer:', err.message);
     });
   }

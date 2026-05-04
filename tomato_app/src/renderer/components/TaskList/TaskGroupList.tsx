@@ -3,15 +3,27 @@ import { TaskGroupHeader } from './TaskGroupHeader.js';
 import { TaskItem } from './TaskItem.js';
 import { TaskForm } from './TaskForm.js';
 import { useTaskStore } from '@/stores/task-store.js';
+import { useTimer } from '@/hooks/useTimer.js';
 import { Button } from '@/components/ui/button.js';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog.js';
+import { Input } from '@/components/ui/input.js';
 import { Plus } from 'lucide-react';
 
 export function TaskGroupList() {
   const groups = useTaskStore((s) => s.groups);
   const { getTasksByGroup, addTask, removeTask, updateTask, addGroup, removeGroup, updateGroup } =
     useTaskStore();
+  const { start } = useTimer();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [addingTo, setAddingTo] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
 
   const toggle = (id: string) =>
     setCollapsed((prev) => {
@@ -19,6 +31,25 @@ export function TaskGroupList() {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+
+  const handleCreateGroup = () => {
+    const name = newGroupName.trim();
+    if (name) {
+      addGroup({
+        id: crypto.randomUUID(),
+        name,
+        taskOrder: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      setNewGroupName('');
+      setDialogOpen(false);
+    }
+  };
+
+  const handleStartTask = (taskId: string) => {
+    start(taskId);
+  };
 
   return (
     <div className="flex flex-col gap-1">
@@ -45,9 +76,7 @@ export function TaskGroupList() {
                       completedAt: task.status !== 'completed' ? new Date().toISOString() : undefined,
                     })
                   }
-                  onStart={(id) => {
-                    /* wired later via IPC */
-                  }}
+                  onStart={handleStartTask}
                   onEdit={(id, title) => updateTask(id, { title })}
                   onDelete={(id) => removeTask(id)}
                 />
@@ -73,21 +102,33 @@ export function TaskGroupList() {
           )}
         </div>
       ))}
-      <Button variant="ghost" size="sm" className="self-start mt-2" onClick={async () => {
-  const name = prompt('分组名称:');
-  if (name?.trim()) {
-    addGroup({
-      id: crypto.randomUUID(),
-      name: name.trim(),
-      taskOrder: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-  }
-}}>
+      <Button variant="ghost" size="sm" className="self-start mt-2" onClick={() => setDialogOpen(true)}>
         <Plus className="h-4 w-4" />
         新建分组
       </Button>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新建分组</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="输入分组名称"
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreateGroup()}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDialogOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleCreateGroup}>创建</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
