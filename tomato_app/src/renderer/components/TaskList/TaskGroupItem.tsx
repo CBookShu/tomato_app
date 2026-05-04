@@ -20,6 +20,8 @@ export function TaskGroupItem({ group, tasks }: TaskGroupItemProps) {
     <div className="mb-1">
       <button
         onClick={() => toggleGroupCollapse(group.id)}
+        aria-expanded={!isCollapsed}
+        aria-controls={`group-${group.id}`}
         className="w-full flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
       >
         {isCollapsed ? (
@@ -42,7 +44,7 @@ export function TaskGroupItem({ group, tasks }: TaskGroupItemProps) {
       </button>
 
       {!isCollapsed && (
-        <div className="ml-4 mt-0.5">
+        <div id={`group-${group.id}`} className="ml-4 mt-0.5">
           {tasks.map((task) => (
             <TaskItem
               key={task.id}
