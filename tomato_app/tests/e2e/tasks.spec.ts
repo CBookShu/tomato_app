@@ -1,8 +1,7 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test.describe('Tasks', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
     await page.click('text=任务');
   });
 
