@@ -17,6 +17,17 @@ let currentTimerStatus: TimerStatus = 'idle';
 let currentRemainingTime: number = 0;
 
 async function getTimerConfig(): Promise<Partial<PomodoroConfig>> {
+  // 测试环境优先使用环境变量
+  if (process.env.NODE_ENV === 'test') {
+    return {
+      pomodoroDuration: parseInt(process.env.TEST_POMODORO_DURATION || '5', 10),
+      shortBreakDuration: parseInt(process.env.TEST_BREAK_DURATION || '3', 10),
+      longBreakDuration: parseInt(process.env.TEST_LONG_BREAK_DURATION || '5', 10),
+      longBreakInterval: 4,
+    };
+  }
+
+  // 生产环境从设置读取
   if (!settingsRepo) {
     return {};
   }
