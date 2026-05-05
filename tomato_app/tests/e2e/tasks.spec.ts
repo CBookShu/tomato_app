@@ -2,7 +2,7 @@ import { test, expect } from './fixtures';
 
 test.describe('Tasks', () => {
   test.beforeEach(async ({ page }) => {
-    await page.click('text=任务');
+    await page.getByRole('tab', { name: '任务' }).click();
   });
 
   test('shows new group button', async ({ page }) => {

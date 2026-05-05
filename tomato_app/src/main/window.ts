@@ -6,6 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const isDev = !app.isPackaged;
+const isTest = process.env.NODE_ENV === 'test';
 
 export function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -21,7 +22,7 @@ export function createWindow(): BrowserWindow {
     },
   });
 
-  if (isDev) {
+  if (isDev && !isTest) {
     win.loadURL('http://localhost:5173').catch((err) => {
       console.error('Failed to load dev server:', err.message);
     });

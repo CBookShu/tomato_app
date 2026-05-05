@@ -14,25 +14,25 @@ test.describe('Timer', () => {
   });
 
   test('bottom tab bar has all 4 tabs', async ({ page }) => {
-    await expect(page.locator('text=计时')).toBeVisible();
-    await expect(page.locator('text=任务')).toBeVisible();
-    await expect(page.locator('text=统计')).toBeVisible();
-    await expect(page.locator('text=设置')).toBeVisible();
+    await expect(page.getByRole('tab', { name: '计时' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: '任务' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: '统计' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: '设置' })).toBeVisible();
   });
 
   test('clicking tasks tab shows task list', async ({ page }) => {
-    await page.click('text=任务');
+    await page.getByRole('tab', { name: '任务' }).click();
     await expect(page.locator('button:has-text("新建分组")')).toBeVisible();
   });
 
   test('clicking stats tab shows stats cards', async ({ page }) => {
-    await page.click('text=统计');
+    await page.getByRole('tab', { name: '统计' }).click();
     await expect(page.locator('text=今日统计')).toBeVisible();
     await expect(page.locator('text=本周趋势')).toBeVisible();
   });
 
   test('clicking settings tab shows settings', async ({ page }) => {
-    await page.click('text=设置');
+    await page.getByRole('tab', { name: '设置' }).click();
     await expect(page.locator('text=计时设置')).toBeVisible();
     await expect(page.locator('text=通知设置')).toBeVisible();
   });
