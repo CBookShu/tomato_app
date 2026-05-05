@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>任务-番茄联动 UI 原型</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+      min-height: 100vh;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 40px;
+    }
+    .scene {
+      width: 100%;
+      max-width: 900px;
+    }
+    .scene-title {
+      color: rgba(255,255,255,0.6);
+      font-size: 13px;
+      font-weight: 500;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .task-tree {
+      background: #0f0f1a;
+      border-radius: 12px;
+      padding: 16px;
+      width: 280px;
+    }
+    .group {
+      margin-bottom: 8px;
+    }
+    .group-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .group-header.active {
+      background: rgba(239, 68, 68, 0.1);
+    }
+    .chevron {
+      color: #666;
+      font-size: 12px;
+      width: 16px;
+    }
+    .group-icon {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #3b82f6;
+    }
+    .group-icon.green { background: #22c55e; }
+    .group-icon.orange { background: #f97316; }
+    .group-name {
+      flex: 1;
+      color: #e5e5e5;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .group-count {
+      color: #666;
+      font-size: 12px;
+    }
+    /* 动态番茄图标 */
+    .tomato-indicator {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .tomato-icon {
+      font-size: 14px;
+    }
+    .timer-badge {
+      background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.8; transform: scale(1.05); }
+    }
+    .tasks {
+      margin-left: 22px;
+      margin-top: 4px;
+    }
+    .task {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .task.active {
+      background: rgba(239, 68, 68, 0.15);
+    }
+    .task.selected {
+      background: rgba(239, 68, 68, 0.1);
+    }
+    .checkbox {
+      width: 14px;
+      height: 14px;
+      border: 1.5px solid #555;
+      border-radius: 4px;
+    }
+    .checkbox.checked {
+      background: #22c55e;
+      border-color: #22c55e;
+    }
+    .task-name {
+      flex: 1;
+      color: #ccc;
+      font-size: 13px;
+    }
+    .task-name.done {
+      text-decoration: line-through;
+      color: #666;
+    }
+    .task-pomodoros {
+      color: #666;
+      font-size: 11px;
+    }
+    .desc {
+      color: rgba(255,255,255,0.4);
+      font-size: 12px;
+      line-height: 1.8;
+      text-align: center;
+      max-width: 600px;
+      margin-top: 16px;
+    }
+    .desc strong { color: rgba(255,255,255,0.7); }
+    .row {
+      display: flex;
+      gap: 24px;
+      justify-content: center;
+    }
+    .label {
+      color: rgba(255,255,255,0.3);
+      font-size: 11px;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="color: white; font-size: 24px;">🍅 任务-番茄联动 UI</h1>
+
+  <div class="row">
+    <div>
+      <div class="label">场景：展开状态</div>
+      <div class="task-tree">
+        <div class="group">
+          <div class="group-header active">
+            <span class="chevron">▼</span>
+            <div class="group-icon"></div>
+            <span class="group-name">工作</span>
+            <span class="group-count">2/3</span>
+            <div class="tomato-indicator">
+              <span class="tomato-icon">🍅</span>
+              <span class="timer-badge">18:42</span>
+            </div>
+          </div>
+          <div class="tasks">
+            <div class="task active selected">
+              <div class="checkbox"></div>
+              <span class="task-name">完成项目报告</span>
+              <div class="tomato-indicator">
+                <span class="tomato-icon">🍅</span>
+              </div>
+            </div>
+            <div class="task">
+              <div class="checkbox"></div>
+              <span class="task-name">代码审查</span>
+              <span class="task-pomodoros">x2</span>
+            </div>
+            <div class="task">
+              <div class="checkbox checked"></div>
+              <span class="task-name done">整理文档</span>
+            </div>
+          </div>
+        </div>
+        <div class="group">
+          <div class="group-header">
+            <span class="chevron">▶</span>
+            <div class="group-icon green"></div>
+            <span class="group-name">学习</span>
+            <span class="group-count">0/2</span>
+          </div>
+        </div>
+        <div class="group">
+          <div class="group-header">
+            <span class="chevron">▼</span>
+            <div class="group-icon orange"></div>
+            <span class="group-name">生活</span>
+            <span class="group-count">0/1</span>
+          </div>
+          <div class="tasks">
+            <div class="task">
+              <div class="checkbox"></div>
+              <span class="task-name">买菜</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="label">场景：折叠状态（仍能看到番茄位置）</div>
+      <div class="task-tree">
+        <div class="group">
+          <div class="group-header active">
+            <span class="chevron">▶</span>
+            <div class="group-icon"></div>
+            <span class="group-name">工作</span>
+            <span class="group-count">2/3</span>
+            <div class="tomato-indicator">
+              <span class="tomato-icon">🍅</span>
+              <span class="timer-badge">18:42</span>
+            </div>
+          </div>
+        </div>
+        <div class="group">
+          <div class="group-header">
+            <span class="chevron">▶</span>
+            <div class="group-icon green"></div>
+            <span class="task-name">学习</span>
+            <span class="group-count">0/2</span>
+          </div>
+        </div>
+        <div class="group">
+          <div class="group-header">
+            <span class="chevron">▶</span>
+            <div class="group-icon orange"></div>
+            <span class="group-name">生活</span>
+            <span class="group-count">0/1</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="desc">
+    <strong>设计要点：</strong><br><br>
+    <strong>分组级别：</strong><br>
+    • 🍅 图标 + 倒计时显示在分组右侧<br>
+    • 带呼吸动画，视觉上吸引注意<br>
+    • 即使折叠也能快速定位<br>
+    <br>
+    <strong>任务级别：</strong><br>
+    • 正在专注的任务显示 🍅 图标<br>
+    • 浅红色背景高亮<br>
+    • 点击可跳转到任务详情<br>
+    <br>
+    <strong>交互：</strong><br>
+    • 点击分组中带番茄的任务 → 展开分组 + 选中任务 + 显示详情<br>
+    • 从番茄页面点击"跳转到任务" → 同上效果
+  </div>
+</body>
+</html>

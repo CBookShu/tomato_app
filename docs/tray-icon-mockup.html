@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>托盘图标设计</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+      min-height: 100vh;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 40px;
+    }
+    h1 { color: white; font-size: 24px; }
+    .row {
+      display: flex;
+      gap: 60px;
+      align-items: flex-start;
+    }
+    .item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .label {
+      color: rgba(255,255,255,0.5);
+      font-size: 12px;
+    }
+    .menu-bar {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      height: 32px;
+    }
+    .menu-bar .apple { color: white; font-size: 14px; }
+    .menu-bar .app-name { color: white; font-size: 13px; font-weight: 500; }
+    .menu-bar .spacer { flex: 1; }
+
+    /* 托盘图标样式 */
+    .tray-icon {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 44px;
+      background: transparent;
+      border-radius: 4px;
+    }
+    .tray-emoji {
+      font-size: 16px;
+      line-height: 1;
+    }
+    .tray-time {
+      font-size: 9px;
+      font-weight: 600;
+      color: white;
+      line-height: 1;
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+    .tray-time.working { color: #EF4444; }
+    .tray-time.breaking { color: #22C55E; }
+    .tray-time.idle { color: #888; }
+
+    /* 右键菜单 */
+    .context-menu {
+      background: rgba(40,40,50,0.98);
+      border-radius: 8px;
+      padding: 4px;
+      min-width: 200px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .menu-status {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      text-align: center;
+    }
+    .menu-status-icon { font-size: 20px; }
+    .menu-status-text { color: white; font-size: 12px; font-weight: 500; margin-top: 4px; }
+    .menu-status-task { color: rgba(255,255,255,0.5); font-size: 11px; margin-top: 2px; }
+    .menu-item {
+      padding: 8px 12px;
+      color: rgba(255,255,255,0.8);
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 4px;
+    }
+    .menu-item:hover { background: rgba(255,255,255,0.1); }
+    .menu-item .icon { width: 16px; text-align: center; }
+    .menu-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.1);
+      margin: 4px 8px;
+    }
+
+    .desc {
+      color: rgba(255,255,255,0.4);
+      font-size: 12px;
+      line-height: 1.8;
+      text-align: center;
+      max-width: 600px;
+    }
+    .desc strong { color: rgba(255,255,255,0.7); }
+
+    .states {
+      display: flex;
+      gap: 40px;
+      margin-top: 20px;
+    }
+    .state-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .state-label {
+      color: rgba(255,255,255,0.4);
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🍅 托盘图标设计</h1>
+
+  <div class="row">
+    <div class="item">
+      <div class="label">macOS 菜单栏效果</div>
+      <div class="menu-bar">
+        <span class="apple"></span>
+        <span class="app-name">Finder</span>
+        <span class="spacer"></span>
+        <div class="tray-icon">
+          <span class="tray-emoji">🍅</span>
+          <span class="tray-time working">18:42</span>
+        </div>
+        <span style="color: rgba(255,255,255,0.5); font-size: 11px;">🔋 85%</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="label">右键菜单</div>
+      <div class="context-menu">
+        <div class="menu-status">
+          <div class="menu-status-icon">🍅</div>
+          <div class="menu-status-text">专注中 18:42</div>
+          <div class="menu-status-task">当前：完成项目报告</div>
+        </div>
+        <div class="menu-item"><span class="icon">⏸</span> 暂停</div>
+        <div class="menu-item"><span class="icon">⏹</span> 停止</div>
+        <div class="menu-divider"></div>
+        <div class="menu-item"><span class="icon">📂</span> 打开应用</div>
+        <div class="menu-item"><span class="icon">🚪</span> 退出</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="states">
+    <div class="state-item">
+      <div class="tray-icon">
+        <span class="tray-emoji" style="opacity: 0.4;">🍅</span>
+      </div>
+      <div class="state-label">空闲状态（半透明，无时间）</div>
+    </div>
+    <div class="state-item">
+      <div class="tray-icon">
+        <span class="tray-emoji">🍅</span>
+        <span class="tray-time working">18:42</span>
+      </div>
+      <div class="state-label">专注中（红色）</div>
+    </div>
+    <div class="state-item">
+      <div class="tray-icon">
+        <span class="tray-emoji">☕</span>
+        <span class="tray-time breaking">04:58</span>
+      </div>
+      <div class="state-label">休息中（绿色）</div>
+    </div>
+  </div>
+
+  <div class="desc">
+    <strong>托盘图标：</strong><br>
+    • 上方：动态图标（🍅 专注 / ☕ 休息）<br>
+    • 下方：倒计时或状态文字<br>
+    • 颜色：红色（专注）/ 绿色（休息）/ 半透明灰色（空闲）<br>
+    • 空闲时只显示半透明图标，不显示时间<br>
+    <br>
+    <strong>交互：</strong><br>
+    • 双击图标 → 打开应用窗口<br>
+    • 右键图标 → 显示操作菜单
+  </div>
+</body>
+</html>
