@@ -31,7 +31,7 @@ export function TimerDisplay({ onNavigateToTasks }: TimerDisplayProps) {
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="text-sm font-medium text-gray-500">{statusLabels[status]}</div>
-      <div className="font-mono text-8xl font-bold tabular-nums text-tomato">
+      <div data-testid="timer-display" className="font-mono text-8xl font-bold tabular-nums text-tomato">
         {formattedTime}
       </div>
       <div className="flex items-center gap-2 text-sm text-gray-400">
