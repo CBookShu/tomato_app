@@ -32,6 +32,34 @@ npm run pack             # Package app (no installer)
 npm run dist             # Build distributable (DMG/zip for macOS)
 ```
 
+## E2E Testing (Playwright + Electron)
+
+```bash
+# 运行 E2E 测试
+cd tomato_app
+npm run test:e2e
+
+# 测试环境配置
+# - 番茄时长: 5秒
+# - 短休息: 3秒
+# - 长休息: 5秒
+```
+
+E2E 测试使用 Playwright 测试真实 Electron 应用，覆盖核心用户流程。
+
+**测试覆盖**:
+- 完整番茄工作循环（创建任务 → 开始计时 → 暂停/继续 → 完成 → 休息）
+- 任务-计时器联动
+- 底部标签导航
+- 各页面基本功能
+
+**测试文件**:
+- `tests/e2e/fixtures.ts` - Electron 应用启动 fixtures
+- `tests/e2e/pomodoro-cycle.spec.ts` - 完整番茄工作循环测试
+- `tests/e2e/task-timer-link.spec.ts` - 任务-计时器联动测试
+- `tests/e2e/timer.spec.ts` - 计时器基础测试
+- `tests/e2e/tasks.spec.ts` - 任务列表基础测试
+
 ## Architecture
 
 ### Monorepo Structure
