@@ -1,5 +1,6 @@
 import { useTimerStore } from '@/stores/timer-store.js';
 import { useStatsStore } from '@/stores/stats-store.js';
+import { useTaskStore } from '@/stores/task-store.js';
 import { useMemo } from 'react';
 
 type TimerStatus = 'idle' | 'working' | 'paused' | 'breaking' | 'long-break';
@@ -26,13 +27,23 @@ function formatTime(seconds: number): string {
 export function StatusBar() {
   const status = useTimerStore((s) => s.status);
   const remainingTime = useTimerStore((s) => s.remainingTime);
+  const currentTaskId = useTimerStore((s) => s.currentTaskId);
   const todayStats = useStatsStore((s) => s.today);
+  const selectTask = useTaskStore((s) => s.selectTask);
+  const tasks = useTaskStore((s) => s.tasks);
+  const currentTask = tasks.find(t => t.id === currentTaskId);
 
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.idle;
   const showTime = status !== 'idle' && remainingTime > 0;
 
   // Use useMemo to format time safely
   const formattedTime = useMemo(() => formatTime(remainingTime), [remainingTime]);
+
+  const handleTaskClick = () => {
+    if (currentTask) {
+      selectTask(currentTask.id);
+    }
+  };
 
   return (
     <div className="h-8 px-4 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-xs">
@@ -55,6 +66,17 @@ export function StatusBar() {
             </span>
           )}
           <span className="text-gray-500 dark:text-gray-400">{config.label}</span>
+          {currentTask && (
+            <>
+              <span className="text-gray-300 dark:text-gray-600">|</span>
+              <button
+                onClick={handleTaskClick}
+                className="text-gray-500 dark:text-gray-400 hover:text-tomato transition-colors"
+              >
+                当前：{currentTask.title.length > 10 ? currentTask.title.slice(0, 10) + '...' : currentTask.title}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
