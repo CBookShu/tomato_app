@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { useTimerStore } from '@/stores/timer-store.js';
+import { useTaskStore } from '@/stores/task-store.js';
 import { useSettingsStore } from '@/stores/settings-store.js';
 import { useIpc } from './useIpc.js';
 import { IPC } from '@shared/ipc-channels.js';
@@ -48,6 +49,17 @@ export function useTimer() {
       currentTaskId: taskId,
     });
     await invoke(IPC.TIMER_START, taskId ? { taskId } : {});
+
+    // Send task title to main for tray display
+    if (taskId) {
+      const taskStore = useTaskStore.getState();
+      const task = taskStore.tasks.find(t => t.id === taskId);
+      if (task) {
+        window.electronAPI.invoke(IPC.TIMER_TASK_TITLE, task.title);
+      }
+    } else {
+      window.electronAPI.invoke(IPC.TIMER_TASK_TITLE, null);
+    }
   }, [store, getPomodoroDuration]);
 
   const pause = useCallback(async () => {
@@ -61,8 +73,9 @@ export function useTimer() {
   }, [store]);
 
   const stop = useCallback(async () => {
-    store.setState({ status: 'idle', remainingTime: 0, currentCycle: store.currentCycle });
+    store.setState({ status: 'idle', remainingTime: 0, currentCycle: store.currentCycle, currentTaskId: undefined });
     await invoke(IPC.TIMER_STOP);
+    window.electronAPI.invoke(IPC.TIMER_TASK_TITLE, null);
   }, [store]);
 
   const skip = useCallback(async () => {

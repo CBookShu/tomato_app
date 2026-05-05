@@ -13,6 +13,7 @@ export const IPC = {
   TIMER_TICK: 'timer:tick',
   TIMER_STATUS_CHANGE: 'timer:statusChange',
   TIMER_COMPLETE: 'timer:complete',
+  TIMER_TASK_TITLE: 'timer:taskTitle',
 
   // Tray actions
   TRAY_PAUSE: 'tray:pause',
@@ -58,6 +59,7 @@ export interface IpcChannelMap {
   [IPC.TIMER_STOP]: { request: void; response: void };
   [IPC.TIMER_SKIP]: { request: void; response: void };
   [IPC.TIMER_STATE]: { request: void; response: TimerState };
+  [IPC.TIMER_TASK_TITLE]: { request: string | null; response: void };
 
   [IPC.TASK_CREATE]: { request: { input: NewTask; referenceTaskId?: string; insertAfter?: boolean }; response: Task };
   [IPC.TASK_GET]: { request: { id: string }; response: Task | null };
