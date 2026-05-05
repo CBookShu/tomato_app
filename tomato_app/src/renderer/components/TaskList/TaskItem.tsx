@@ -17,7 +17,7 @@ export function TaskItem({ task, isSelected }: TaskItemProps) {
   const [title, setTitle] = useState(task.title);
   const isCompleted = task.status === 'completed';
 
-  const { updateTask, removeTask } = useTaskStore();
+  const { updateTask, removeTask, selectTask } = useTaskStore();
   const { start } = useTimer();
 
   const handleCheck = () => {
@@ -42,10 +42,15 @@ export function TaskItem({ task, isSelected }: TaskItemProps) {
     removeTask(task.id);
   };
 
+  const handleClick = () => {
+    selectTask(task.id);
+  };
+
   return (
     <div
+      onClick={handleClick}
       className={cn(
-        'group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors',
+        'group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer',
         isCompleted && 'opacity-50',
         isSelected && 'bg-tomato/10 dark:bg-tomato/20',
       )}

@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { useTimerStore } from '@/stores/timer-store.js';
+import { useSettingsStore } from '@/stores/settings-store.js';
 import { useIpc } from './useIpc.js';
 import { IPC } from '@shared/ipc-channels.js';
 import type { TimerState } from '@pomodoro/core';
@@ -7,6 +8,13 @@ import type { TimerState } from '@pomodoro/core';
 export function useTimer() {
   const { invoke, listen } = useIpc();
   const store = useTimerStore();
+  const settings = useSettingsStore((s) => s.settings);
+
+  // Get configured pomodoro duration in seconds
+  const getPomodoroDuration = useCallback(() => {
+    const duration = parseInt(settings['pomodoro_duration'] || '25', 10);
+    return duration * 60;
+  }, [settings]);
 
   useEffect(() => {
     const unsubTick = listen(IPC.TIMER_TICK, (remainingTime: unknown) => {
@@ -31,15 +39,16 @@ export function useTimer() {
   }, []);
 
   const start = useCallback(async (taskId?: string) => {
+    const duration = getPomodoroDuration();
     // Optimistically update UI
     store.setState({
       status: 'working',
-      remainingTime: 25 * 60,
+      remainingTime: duration,
       currentCycle: store.currentCycle + 1,
       currentTaskId: taskId,
     });
     await invoke(IPC.TIMER_START, taskId ? { taskId } : {});
-  }, [store]);
+  }, [store, getPomodoroDuration]);
 
   const pause = useCallback(async () => {
     store.setState({ ...useTimerStore.getState(), status: 'paused' });

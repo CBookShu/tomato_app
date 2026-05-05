@@ -1,14 +1,54 @@
 import { useTaskStore } from '@/stores/task-store.js';
 import { useTimer } from '@/hooks/useTimer.js';
 import { Button } from '@/components/ui/button.js';
-import { Play, CheckCircle } from 'lucide-react';
+import { Play, CheckCircle, Save } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
+import { useIpc } from '@/hooks/useIpc.js';
+import { IPC } from '@shared/ipc-channels.js';
 
 export function TaskDetail() {
-  const getSelectedTask = useTaskStore((s) => s.getSelectedTask);
+  const tasks = useTaskStore((s) => s.tasks);
+  const selectedTaskId = useTaskStore((s) => s.selectedTaskId);
   const updateTask = useTaskStore((s) => s.updateTask);
   const { start, status } = useTimer();
+  const { invoke } = useIpc();
 
-  const task = getSelectedTask();
+  // Use useMemo to find the selected task
+  const task = useMemo(
+    () => tasks.find((t) => t.id === selectedTaskId) ?? null,
+    [tasks, selectedTaskId]
+  );
+
+  // Local state for notes editing
+  const [notes, setNotes] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Sync notes with selected task
+  useEffect(() => {
+    if (task) {
+      setNotes(task.description || '');
+    }
+  }, [task?.id, task?.description]);
+
+  const handleSaveNotes = async () => {
+    if (!task) return;
+
+    setIsSaving(true);
+    try {
+      // Optimistic UI update
+      updateTask(task.id, { description: notes });
+
+      // Persist to database
+      await invoke(IPC.TASK_EDIT, {
+        id: task.id,
+        updates: { description: notes },
+      });
+    } catch (error) {
+      console.error('Failed to save notes:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (!task) {
     return (
@@ -65,12 +105,26 @@ export function TaskDetail() {
         </div>
 
         <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-          <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            📝 笔记
-          </h2>
-          <p className="text-sm text-gray-400 italic">
-            笔记功能将在 Phase 2 实现...
-          </p>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              📝 笔记
+            </h2>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleSaveNotes}
+              disabled={isSaving}
+            >
+              <Save className="h-3 w-3 mr-1" />
+              {isSaving ? '保存中...' : '保存'}
+            </Button>
+          </div>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="添加笔记..."
+            className="w-full h-40 p-3 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-tomato/50"
+          />
         </div>
       </div>
     </div>

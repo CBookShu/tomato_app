@@ -1,5 +1,6 @@
 import { useTimerStore } from '@/stores/timer-store.js';
 import { useStatsStore } from '@/stores/stats-store.js';
+import { useMemo } from 'react';
 
 type TimerStatus = 'idle' | 'working' | 'paused' | 'breaking' | 'long-break';
 
@@ -16,16 +17,22 @@ const STATUS_CONFIG: Record<TimerStatus, StatusConfig> = {
   'long-break': { color: 'bg-green-500', label: '长休息' },
 };
 
+function formatTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
 export function StatusBar() {
-  const { status, remainingTime, formattedTime } = useTimerStore((s) => ({
-    status: s.status,
-    remainingTime: s.remainingTime,
-    formattedTime: s.formattedTime(),
-  }));
+  const status = useTimerStore((s) => s.status);
+  const remainingTime = useTimerStore((s) => s.remainingTime);
   const todayStats = useStatsStore((s) => s.today);
 
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.idle;
   const showTime = status !== 'idle' && remainingTime > 0;
+
+  // Use useMemo to format time safely
+  const formattedTime = useMemo(() => formatTime(remainingTime), [remainingTime]);
 
   return (
     <div className="h-8 px-4 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-xs">

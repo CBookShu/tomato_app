@@ -7,8 +7,9 @@
   "scripts": {
     "dev": "vite",
     "dev:electron": "node scripts/dev.mjs",
-    "build": "tsc -p tsconfig.main.json && vite build",
+    "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json && vite build",
     "build:main": "tsc -p tsconfig.main.json",
+    "build:preload": "tsc -p tsconfig.preload.json",
     "build:renderer": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
