@@ -9,6 +9,7 @@ import { registerShortcuts, unregisterShortcuts } from './shortcuts.js';
 import { IPC } from '../shared/ipc-channels.js';
 
 let mainWindow: BrowserWindow | null = null;
+let currentTimerStatus: TimerStatus = 'idle';
 
 app.whenReady().then(async () => {
   const { taskManager, statsRepo, settingsRepo } = initDatabase();
@@ -27,6 +28,7 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.on(IPC.TIMER_STATUS_CHANGE, (_event, status: TimerStatus) => {
+    currentTimerStatus = status;
     if (status === 'idle') {
       setTrayTaskTitle(undefined);
     }
@@ -34,11 +36,10 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.on(IPC.TIMER_TICK, (_event, remainingTime: number) => {
-    // Get current status from timer state - we'll need to track this
-    updateTrayTime('working', remainingTime);
+    updateTrayTime(currentTimerStatus, remainingTime);
   });
 
-  ipcMain.on('timer:taskTitle', (_event, title: string | null) => {
+  ipcMain.handle(IPC.TIMER_TASK_TITLE, async (_event, title: string | null) => {
     setTrayTaskTitle(title ?? undefined);
   });
 

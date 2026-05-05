@@ -98,11 +98,13 @@ export function TaskItem({ task, isSelected }: TaskItemProps) {
           {task.title}
         </span>
       )}
-      <span className="text-xs text-gray-400 tabular-nums whitespace-nowrap">
-        {task.completedPomodoros > 0 ? `x${task.completedPomodoros}` : ''}
-      </span>
+      {!isActive && (
+        <span className="text-xs text-gray-400 tabular-nums whitespace-nowrap">
+          {task.completedPomodoros > 0 ? `x${task.completedPomodoros}` : ''}
+        </span>
+      )}
       {isActive && (
-        <span className="text-sm animate-pulse">🍅</span>
+        <span className="text-sm animate-pulse shrink-0">🍅</span>
       )}
       <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleStart}>

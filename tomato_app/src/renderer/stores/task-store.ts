@@ -53,7 +53,19 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
 
   setLoading: (loading) => set({ loading }),
 
-  selectTask: (id) => set({ selectedTaskId: id }),
+  selectTask: (id) => {
+    const task = get().tasks.find((t) => t.id === id);
+    if (task) {
+      // Expand the group containing this task
+      set((s) => {
+        const next = new Set(s.collapsedGroups);
+        next.delete(task.groupId);
+        return { selectedTaskId: id, collapsedGroups: next };
+      });
+    } else {
+      set({ selectedTaskId: id });
+    }
+  },
 
   toggleGroupCollapse: (groupId) =>
     set((s) => {
