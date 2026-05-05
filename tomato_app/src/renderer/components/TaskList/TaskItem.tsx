@@ -65,6 +65,7 @@ export function TaskItem({ task, isSelected }: TaskItemProps) {
   return (
     <div
       onClick={handleClick}
+      data-testid="task-item"
       className={cn(
         'group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer',
         isCompleted && 'opacity-50',
@@ -104,7 +105,7 @@ export function TaskItem({ task, isSelected }: TaskItemProps) {
         </span>
       )}
       {isActive && (
-        <span className="text-sm animate-pulse shrink-0">🍅</span>
+        <span data-testid="timer-indicator" className="text-sm animate-pulse shrink-0">🍅</span>
       )}
       <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleStart}>
