@@ -60,16 +60,17 @@ async function createTaskAndStartTimer(page: Page, taskTitle: string) {
   await page.getByTitle('新建任务').click();
 
   // 任务创建后会自动创建名为"新任务"的任务
-  await expect(page.getByText('新任务')).toBeVisible();
+  const newTaskItem = page.getByTestId('task-item').filter({ hasText: '新任务' }).first();
+  await expect(newTaskItem).toBeVisible();
 
   // 编辑任务（双击任务标题进入编辑模式）
-  await page.getByText('新任务').dblclick();
+  await newTaskItem.dblclick();
   // 找到输入框并修改任务标题
   const input = page.locator('input').filter({ hasText: '' }).first();
   await input.fill(taskTitle);
   await input.press('Enter');
 
-  await expect(page.getByText(taskTitle)).toBeVisible();
+  await expect(page.getByTestId('task-item').filter({ hasText: taskTitle }).first()).toBeVisible();
 
   // 在任务列表中点击任务的播放按钮开始计时
   const taskItem = page.getByTestId('task-item').filter({ hasText: taskTitle });
