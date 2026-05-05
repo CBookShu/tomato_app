@@ -2,6 +2,7 @@ import type { TaskGroup, Task } from '@pomodoro/core';
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { TaskItem } from './TaskItem.js';
 import { useTaskStore } from '@/stores/task-store.js';
+import { useTimerStore } from '@/stores/timer-store.js';
 import { useIpc } from '@/hooks/useIpc.js';
 import { IPC } from '@shared/ipc-channels.js';
 
@@ -15,10 +16,24 @@ export function TaskGroupItem({ group, tasks }: TaskGroupItemProps) {
   const toggleGroupCollapse = useTaskStore((s) => s.toggleGroupCollapse);
   const selectedTaskId = useTaskStore((s) => s.selectedTaskId);
   const addTask = useTaskStore((s) => s.addTask);
+  const currentTaskId = useTimerStore((s) => s.currentTaskId);
+  const remainingTime = useTimerStore((s) => s.remainingTime);
+  const timerStatus = useTimerStore((s) => s.status);
   const { invoke } = useIpc();
 
   const isCollapsed = collapsedGroups.has(group.id);
   const completedCount = tasks.filter((t) => t.status === 'completed').length;
+
+  // Find if any task in this group is active
+  const activeTask = tasks.find((t) => t.id === currentTaskId);
+  const showTimer = activeTask && timerStatus === 'working';
+
+  // Format remaining time
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   const handleAddTask = async () => {
     const title = '新任务';
@@ -72,6 +87,12 @@ export function TaskGroupItem({ group, tasks }: TaskGroupItemProps) {
           <span className="text-xs text-gray-400">
             {completedCount}/{tasks.length}
           </span>
+          {showTimer && (
+            <span className="flex items-center gap-1 text-xs text-tomato animate-pulse ml-2">
+              <span>🍅</span>
+              <span className="font-mono">{formatTime(remainingTime)}</span>
+            </span>
+          )}
         </button>
 
         <button
