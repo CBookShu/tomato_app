@@ -31,6 +31,22 @@ app.whenReady().then(async () => {
     onStop: () => mainWindow?.webContents.send(IPC.TIMER_STOP),
     onNewTask: () => mainWindow?.webContents.send('focus:newTask'),
   });
+
+  // 测试环境专用 IPC
+  if (process.env.NODE_ENV === 'test') {
+    const { clearDatabase } = await import('./database.js');
+
+    ipcMain.handle('test:clear-database', async () => {
+      clearDatabase();
+      return { success: true };
+    });
+
+    ipcMain.handle('test:fast-forward', async (_event, seconds: number) => {
+      // 发送时间加速事件到渲染进程
+      mainWindow?.webContents.send('test:fast-forward', seconds);
+      return { success: true };
+    });
+  }
 }).catch((err) => {
   console.error('Failed to start app:', err);
   app.quit();
