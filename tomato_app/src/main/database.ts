@@ -8,13 +8,14 @@ import { app } from 'electron';
 import path from 'node:path';
 
 let db: BetterSQLite3Database | null = null;
+let sqlite: Database.Database | null = null;
 let taskManager: TaskManager | null = null;
 let statsRepo: StatsRepository | null = null;
 let settingsRepo: SettingsRepository | null = null;
 
 export function initDatabase() {
   const dbPath = path.join(app.getPath('userData'), 'tomato.db');
-  const sqlite = new Database(dbPath);
+  sqlite = new Database(dbPath);
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('foreign_keys = ON');
 
@@ -76,4 +77,13 @@ export function getStatsRepo() {
 export function getSettingsRepo() {
   if (!settingsRepo) throw new Error('Database not initialized');
   return settingsRepo;
+}
+
+export function clearDatabase() {
+  if (!sqlite) return;
+
+  sqlite.exec('DELETE FROM tasks');
+  sqlite.exec('DELETE FROM task_groups');
+  sqlite.exec('DELETE FROM daily_stats');
+  // 保留 settings 表，但重置为默认值
 }
