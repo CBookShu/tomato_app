@@ -2,16 +2,11 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  timeout: 30000,
+  timeout: 60000, // Electron 启动较慢
   retries: 1,
   use: {
-    baseURL: 'http://localhost:5173',
-    headless: true,
+    // Electron 应用配置
+    headless: false, // Electron 必须非 headless
   },
-  webServer: {
-    command: 'npx vite',
-    port: 5173,
-    reuseExistingServer: true,
-    cwd: '.',
-  },
+  // 移除 webServer 配置，因为测试 Electron 应用
 });
