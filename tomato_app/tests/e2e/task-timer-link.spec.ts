@@ -41,6 +41,25 @@ test.describe('任务-计时器联动', () => {
     const statusBar = page.getByTestId('status-bar');
     await expect(statusBar.getByText('新任务')).toBeVisible();
   });
+
+  test('番茄钟结束后进入休息时，任务仍显示关联图标（无动画）', async ({ page }) => {
+    await createTaskAndStartTimer(page);
+
+    // 等待番茄钟结束（5秒配置）
+    await expect(page.getByText(/休息|休息中/)).toBeVisible({ timeout: 10000 });
+
+    // 切换到任务列表
+    await page.getByRole('tab', { name: '任务' }).click();
+
+    // 验证任务仍显示番茄图标（表示上一个专注的任务）
+    const taskItem = page.getByTestId('task-item').filter({ hasText: '新任务' });
+    const timerIndicator = taskItem.getByTestId('timer-indicator');
+    await expect(timerIndicator).toBeVisible();
+
+    // 验证图标没有动画效果（通过检查类名）
+    const className = await timerIndicator.getAttribute('class');
+    expect(className).not.toContain('animate-pulse');
+  });
 });
 
 // 辅助函数：创建任务并开始计时（不编辑标题）

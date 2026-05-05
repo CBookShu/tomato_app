@@ -113,7 +113,7 @@ export function TaskItem({ task, isSelected }: TaskItemProps) {
         </span>
       )}
       {isActive && (
-        <span data-testid="timer-indicator" className="text-sm animate-pulse shrink-0">🍅</span>
+        <span data-testid="timer-indicator" className="text-sm shrink-0">🍅</span>
       )}
       <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleStart}>
