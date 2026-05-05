@@ -60,7 +60,7 @@
 
 ```
 ┌─────────────────────────────┐
-│ ▼ 🔵 工作           2/3  🍉 18:42 │
+│ ▼ 🔵 工作           2/3  🍅 18:42 │
 │   ├ 📝 完成项目报告   🍅         │
 │   ├ 📝 代码审查       x2        │
 │   └ ☑ 整理文档                  │
@@ -115,7 +115,9 @@
 确认删除后：
 1. 停止当前计时器
 2. 计时器状态重置为 idle
-3. 删除任务
+3. 清空 `currentTaskId`（移除任务高亮）
+4. 更新托盘图标为空闲状态
+5. 删除任务
 
 ---
 
@@ -217,19 +219,45 @@ const isTaskActive = task.id === activeTaskId;
 
 ### 5.3 通知修复
 
-确保 `IPC.TIMER_COMPLETE` 事件正确发送和接收：
+Timer 完成事件由 main 进程直接处理并触发系统通知：
 
 ```typescript
-// ipc-handlers.ts
-t.on('complete', (type: 'work' | 'break') => {
-  win?.webContents.send(IPC.TIMER_COMPLETE, type);
+// main/timer.ts - Timer 实例的 complete 事件
+timer.on('complete', (type: 'work' | 'break') => {
+  // 直接在 main 进程触发通知
+  if (type === 'work') {
+    showNotification('🍅 番茄时间结束', '该休息一下了！');
+  } else {
+    showNotification('☕ 休息时间结束', '可以继续专注了！');
+  }
+  // 同时通知 renderer 更新 UI
+  mainWindow?.webContents.send(IPC.TIMER_COMPLETE, type);
 });
+```
 
-// index.ts (main)
-ipcMain.on(IPC.TIMER_COMPLETE, (_event, type) => {
-  if (type === 'work') notifyPomodoroComplete();
-  else notifyBreakComplete();
-});
+通知按钮交互通过 macOS 原生 API 实现：
+
+```typescript
+// main/notifications.ts
+function showNotification(title: string, body: string) {
+  const notification = new Notification({
+    title,
+    body,
+    actions: [
+      { type: 'button', text: '关闭' },
+      { type: 'button', text: '打开应用' }
+    ]
+  });
+  
+  notification.on('action', (event, index) => {
+    if (index === 1) { // 打开应用
+      mainWindow?.show();
+      mainWindow?.focus();
+    }
+  });
+  
+  notification.show();
+}
 ```
 
 ---
@@ -239,7 +267,11 @@ ipcMain.on(IPC.TIMER_COMPLETE, (_event, type) => {
 | 文件 | 操作 | 说明 |
 |------|------|------|
 | `src/main/tray.ts` | 重构 | 动态图标生成 + 菜单交互 |
-| `src/main/notifications.ts` | 修改 | 添加交互按钮 |
+| `src/main/notifications.ts` | 修改 | 添加交互按钮，处理按钮点击 |
+| `src/main/timer.ts` | 修改 | 添加 complete 事件处理，触发通知 |
+| `src/main/ipc-handlers.ts` | 修改 | 添加托盘菜单操作的 IPC handlers（暂停、停止、跳过休息） |
+| `src/shared/ipc-channels.ts` | 修改 | 定义托盘操作相关 IPC channels |
+| `src/preload/index.ts` | 修改 | 暴露托盘操作相关 API |
 | `src/renderer/stores/timer-store.ts` | 修改 | 添加 currentTaskId 管理 |
 | `src/renderer/components/TaskList/TaskGroupItem.tsx` | 修改 | 显示分组计时状态 |
 | `src/renderer/components/TaskList/TaskItem.tsx` | 修改 | 显示任务计时状态 |
