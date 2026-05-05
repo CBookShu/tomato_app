@@ -3,6 +3,7 @@ import { createWindow } from './window.js';
 import { registerIpcHandlers } from './ipc-handlers.js';
 import { initDatabase } from './database.js';
 import { createTray, updateTrayIcon, updateTrayTime, setTrayTaskTitle } from './tray.js';
+import type { TimerStatus } from './tray.js';
 import { notifyPomodoroComplete, notifyBreakComplete, setNotificationWindow } from './notifications.js';
 import { registerShortcuts, unregisterShortcuts } from './shortcuts.js';
 import { IPC } from '../shared/ipc-channels.js';
@@ -25,7 +26,7 @@ app.whenReady().then(async () => {
     else notifyBreakComplete();
   });
 
-  ipcMain.on(IPC.TIMER_STATUS_CHANGE, (_event, status: string) => {
+  ipcMain.on(IPC.TIMER_STATUS_CHANGE, (_event, status: TimerStatus) => {
     if (status === 'idle') {
       setTrayTaskTitle(undefined);
     }

@@ -5,7 +5,7 @@ let tray: Tray | null = null;
 let mainWindow: BrowserWindow | null = null;
 let currentTaskTitle: string | undefined = undefined;
 
-type TimerStatus = 'idle' | 'working' | 'paused' | 'breaking' | 'long-break';
+export type TimerStatus = 'idle' | 'working' | 'paused' | 'breaking' | 'long-break';
 
 function generateTrayIcon(status: TimerStatus, timeStr?: string): Electron.NativeImage {
   const width = 28;
