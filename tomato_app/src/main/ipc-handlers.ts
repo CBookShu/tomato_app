@@ -78,6 +78,11 @@ export function registerIpcHandlers(
   ipcMain.handle(IPC.TIMER_SKIP, async () => (await getTimer()).skip());
   ipcMain.handle(IPC.TIMER_STATE, async () => (await getTimer()).getState());
 
+  // Tray action handlers - forward to timer actions
+  ipcMain.handle(IPC.TRAY_PAUSE, async () => (await getTimer()).pause());
+  ipcMain.handle(IPC.TRAY_STOP, async () => (await getTimer()).stop());
+  ipcMain.handle(IPC.TRAY_SKIP_BREAK, async () => (await getTimer()).skip());
+
   // Task handlers (only if taskManager injected)
   if (taskManager) {
     ipcMain.handle(IPC.TASK_CREATE, async (_e, payload) => {
