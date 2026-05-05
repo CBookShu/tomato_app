@@ -51,7 +51,10 @@ export function StatusBar({ onNavigateToTasks }: StatusBarProps) {
   };
 
   return (
-    <div className="h-8 px-4 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-xs">
+    <div
+      className="h-8 px-4 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-xs"
+      data-testid="status-bar"
+    >
       <span className="text-gray-500 dark:text-gray-400">Tomato v0.1.0</span>
 
       <div className="flex items-center gap-4">
