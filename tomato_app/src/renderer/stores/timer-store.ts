@@ -9,6 +9,7 @@ interface TimerStoreState {
 
   setState: (state: TimerState) => void;
   tick: (remainingTime: number) => void;
+  setCurrentTaskId: (taskId: string | null) => void;
   formattedTime: () => string;
 }
 
@@ -27,6 +28,8 @@ export const useTimerStore = create<TimerStoreState>((set, get) => ({
     }),
 
   tick: (remainingTime) => set({ remainingTime }),
+
+  setCurrentTaskId: (taskId) => set({ currentTaskId: taskId ?? undefined }),
 
   formattedTime: () => {
     const t = get().remainingTime;
