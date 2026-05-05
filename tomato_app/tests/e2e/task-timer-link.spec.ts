@@ -1,15 +1,16 @@
-import { test, expect, Page } from './fixtures';
+import { test, expect, Page, ElectronApplication } from './fixtures';
 
 test.describe('任务-计时器联动', () => {
-  test.beforeEach(async ({ electronApp }) => {
-    await electronApp.evaluate(({ ipcMain }) => {
-      return new Promise((resolve) => {
-        ipcMain.handle('test:clear-database', async () => {
-          resolve(undefined);
-          return { success: true };
-        });
-        ipcMain.emit('test:clear-database');
-      });
+  test.beforeEach(async ({ page, electronApp }) => {
+    // 等待页面加载完成
+    await page.waitForLoadState('domcontentloaded');
+
+    // 通过 IPC 清理数据库
+    await electronApp.evaluate(async ({ ipcMain }) => {
+      const handlers = ipcMain.listeners('test:clear-database');
+      if (handlers.length > 0) {
+        await ipcMain.invoke('test:clear-database');
+      }
     });
   });
 
@@ -51,18 +52,29 @@ test.describe('任务-计时器联动', () => {
 // 辅助函数
 async function createTaskAndStartTimer(page: Page, taskTitle: string) {
   await page.getByRole('tab', { name: '任务' }).click();
-  await page.getByRole('button', { name: '新建任务' }).click();
-  await page.getByPlaceholder('任务标题').fill(taskTitle);
-  await page.getByRole('button', { name: '保存' }).click();
 
-  await page.getByRole('tab', { name: '计时' }).click();
+  // 验证默认分组存在（名称为"未分组"）
+  await expect(page.getByText('未分组')).toBeVisible();
 
-  // 选择任务（如果有选择任务的 UI）
-  const selectTaskButton = page.getByRole('button', { name: '选择任务' });
-  if (await selectTaskButton.isVisible()) {
-    await selectTaskButton.click();
-    await page.getByText(taskTitle).click();
-  }
+  // 新建任务：点击分组旁边的 + 按钮（title="新建任务"）
+  await page.getByTitle('新建任务').click();
 
-  await page.getByTestId('timer-start-button').click();
+  // 任务创建后会自动创建名为"新任务"的任务
+  await expect(page.getByText('新任务')).toBeVisible();
+
+  // 编辑任务（双击任务标题进入编辑模式）
+  await page.getByText('新任务').dblclick();
+  // 找到输入框并修改任务标题
+  const input = page.locator('input').filter({ hasText: '' }).first();
+  await input.fill(taskTitle);
+  await input.press('Enter');
+
+  await expect(page.getByText(taskTitle)).toBeVisible();
+
+  // 在任务列表中点击任务的播放按钮开始计时
+  const taskItem = page.getByTestId('task-item').filter({ hasText: taskTitle });
+  // 悬停以显示操作按钮
+  await taskItem.hover();
+  // 点击播放按钮（Play 图标）开始计时
+  await taskItem.getByRole('button').filter({ has: page.locator('svg') }).first().click();
 }

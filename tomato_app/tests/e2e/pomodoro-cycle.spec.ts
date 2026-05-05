@@ -1,16 +1,16 @@
 import { test, expect } from './fixtures';
 
 test.describe('完整番茄工作循环', () => {
-  test.beforeEach(async ({ electronApp }) => {
-    // 清空数据库
-    await electronApp.evaluate(({ ipcMain }) => {
-      return new Promise((resolve) => {
-        ipcMain.handle('test:clear-database', async () => {
-          resolve(undefined);
-          return { success: true };
-        });
-        ipcMain.emit('test:clear-database');
-      });
+  test.beforeEach(async ({ page, electronApp }) => {
+    // 等待页面加载完成
+    await page.waitForLoadState('domcontentloaded');
+
+    // 通过 IPC 清理数据库
+    await electronApp.evaluate(async ({ ipcMain }) => {
+      const handlers = ipcMain.listeners('test:clear-database');
+      if (handlers.length > 0) {
+        await ipcMain.invoke('test:clear-database');
+      }
     });
   });
 
@@ -18,40 +18,41 @@ test.describe('完整番茄工作循环', () => {
     // === 步骤1: 创建任务 ===
     await page.getByRole('tab', { name: '任务' }).click();
 
-    // 验证默认分组存在
-    await expect(page.getByText('默认分组')).toBeVisible();
+    // 验证默认分组存在（名称为"未分组"）
+    await expect(page.getByText('未分组')).toBeVisible();
 
-    // 新建任务
-    await page.getByRole('button', { name: '新建任务' }).click();
-    await page.getByPlaceholder('任务标题').fill('完成项目报告');
-    await page.getByRole('button', { name: '保存' }).click();
+    // 新建任务：点击分组旁边的 + 按钮（title="新建任务"）
+    await page.getByTitle('新建任务').click();
 
-    // 验证任务创建成功
+    // 任务创建后会自动创建名为"新任务"的任务
+    await expect(page.getByText('新任务')).toBeVisible();
+
+    // === 步骤2: 编辑任务（双击任务标题进入编辑模式）===
+    await page.getByText('新任务').dblclick();
+    // 找到输入框并修改任务标题
+    const input = page.locator('input').filter({ hasText: '' }).first();
+    await input.fill('完成项目报告');
+    await input.press('Enter');
+
     await expect(page.getByText('完成项目报告')).toBeVisible();
 
-    // === 步骤2: 编辑任务 ===
-    await page.getByText('完成项目报告').dblclick();
-    await page.getByPlaceholder('任务标题').fill('完成项目报告（修订版）');
-    await page.getByRole('button', { name: '保存' }).click();
-
-    await expect(page.getByText('完成项目报告（修订版）')).toBeVisible();
-
     // === 步骤3: 开始番茄计时 ===
+    // 在任务列表中点击任务的播放按钮开始计时
+    const taskItem = page.getByTestId('task-item').filter({ hasText: '完成项目报告' });
+    // 悬停以显示操作按钮
+    await taskItem.hover();
+    // 点击播放按钮（Play 图标）开始计时
+    await taskItem.getByRole('button').filter({ has: page.locator('svg') }).first().click();
+
+    // 切换到计时视图验证计时器状态
     await page.getByRole('tab', { name: '计时' }).click();
-
-    // 选择任务（如果有选择任务的 UI）
-    const selectTaskButton = page.getByRole('button', { name: '选择任务' });
-    if (await selectTaskButton.isVisible()) {
-      await selectTaskButton.click();
-      await page.getByText('完成项目报告（修订版）').click();
-    }
-
-    // 开始计时
-    await page.getByTestId('timer-start-button').click();
 
     // 验证计时器正在运行
     await expect(page.getByTestId('timer-pause-button')).toBeVisible();
     await expect(page.getByTestId('timer-display')).toBeVisible();
+
+    // 验证当前任务显示
+    await expect(page.getByText('当前任务：完成项目报告')).toBeVisible();
 
     // === 步骤4: 暂停/继续 ===
     await page.getByTestId('timer-pause-button').click();
