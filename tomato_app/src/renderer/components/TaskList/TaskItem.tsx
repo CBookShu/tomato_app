@@ -33,7 +33,8 @@ export function TaskItem({ task, isSelected }: TaskItemProps) {
     });
   };
 
-  const handleStart = () => {
+  const handleStart = (e: React.MouseEvent) => {
+    e.stopPropagation();
     start(task.id);
   };
 
@@ -44,7 +45,13 @@ export function TaskItem({ task, isSelected }: TaskItemProps) {
     }
   };
 
-  const handleDelete = () => {
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditing(true);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (isActive) {
       setShowDeleteConfirm(true);
     } else {
@@ -89,6 +96,7 @@ export function TaskItem({ task, isSelected }: TaskItemProps) {
             if (e.key === 'Enter') handleEdit();
             if (e.key === 'Escape') setEditing(false);
           }}
+          onClick={(e) => e.stopPropagation()}
           className="flex-1 bg-transparent border-b border-tomato px-1 text-sm outline-none"
         />
       ) : (
@@ -111,7 +119,7 @@ export function TaskItem({ task, isSelected }: TaskItemProps) {
         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleStart}>
           <Play className="h-3 w-3" />
         </Button>
-        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditing(true)}>
+        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleEditClick}>
           <Pencil className="h-3 w-3" />
         </Button>
         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleDelete}>
