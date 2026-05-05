@@ -2,8 +2,8 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import { createWindow } from './window.js';
 import { registerIpcHandlers } from './ipc-handlers.js';
 import { initDatabase } from './database.js';
-import { createTray, updateTrayIcon, updateTrayTime } from './tray.js';
-import { notifyPomodoroComplete, notifyBreakComplete } from './notifications.js';
+import { createTray, updateTrayIcon, updateTrayTime, setTrayTaskTitle } from './tray.js';
+import { notifyPomodoroComplete, notifyBreakComplete, setNotificationWindow } from './notifications.js';
 import { registerShortcuts, unregisterShortcuts } from './shortcuts.js';
 import { IPC } from '../shared/ipc-channels.js';
 
@@ -14,6 +14,7 @@ app.whenReady().then(async () => {
   await taskManager.initialize();
 
   mainWindow = createWindow();
+  setNotificationWindow(mainWindow);
   registerIpcHandlers(() => mainWindow, taskManager, statsRepo, settingsRepo);
 
   createTray(() => mainWindow);
@@ -25,12 +26,19 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.on(IPC.TIMER_STATUS_CHANGE, (_event, status: string) => {
+    if (status === 'idle') {
+      setTrayTaskTitle(undefined);
+    }
     updateTrayIcon(status);
   });
 
   ipcMain.on(IPC.TIMER_TICK, (_event, remainingTime: number) => {
     // Get current status from timer state - we'll need to track this
     updateTrayTime('working', remainingTime);
+  });
+
+  ipcMain.on('timer:taskTitle', (_event, title: string | null) => {
+    setTrayTaskTitle(title ?? undefined);
   });
 
   registerShortcuts({
