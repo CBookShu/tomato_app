@@ -1,8 +1,13 @@
 import { useTimerStore } from '@/stores/timer-store.js';
+import { useTaskStore } from '@/stores/task-store.js';
 
 export function TimerDisplay() {
   const status = useTimerStore((s) => s.status);
   const formattedTime = useTimerStore((s) => s.formattedTime());
+  const currentTaskId = useTimerStore((s) => s.currentTaskId);
+  const selectTask = useTaskStore((s) => s.selectTask);
+  const tasks = useTaskStore((s) => s.tasks);
+  const currentTask = tasks.find(t => t.id === currentTaskId);
 
   const statusLabels: Record<string, string> = {
     idle: '准备开始',
@@ -10,6 +15,12 @@ export function TimerDisplay() {
     paused: '已暂停',
     breaking: '短休息',
     'long-break': '长休息',
+  };
+
+  const handleTaskClick = () => {
+    if (currentTask) {
+      selectTask(currentTask.id);
+    }
   };
 
   return (
@@ -28,6 +39,14 @@ export function TimerDisplay() {
           />
         ))}
       </div>
+      {currentTask && (
+        <button
+          onClick={handleTaskClick}
+          className="text-sm text-gray-500 hover:text-tomato transition-colors cursor-pointer"
+        >
+          当前任务：{currentTask.title}
+        </button>
+      )}
     </div>
   );
 }
