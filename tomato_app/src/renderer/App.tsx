@@ -12,6 +12,7 @@ import { useIpc } from '@/hooks/useIpc.js';
 import { IPC } from '@shared/ipc-channels.js';
 import { useTaskStore } from '@/stores/task-store.js';
 import { useStatsStore } from '@/stores/stats-store.js';
+import { useSettingsStore } from '@/stores/settings-store.js';
 import { getToday } from '@pomodoro/core/dist/utils/date-utils.js';
 
 export default function App() {
@@ -20,17 +21,20 @@ export default function App() {
   const { invoke } = useIpc();
   const taskStore = useTaskStore();
   const statsStore = useStatsStore();
+  const settingsStore = useSettingsStore();
 
   useEffect(() => {
     async function loadData() {
       taskStore.setLoading(true);
       try {
-        const [tasks = [], groups = []] = await Promise.all([
+        const [tasks = [], groups = [], allSettings = {}] = await Promise.all([
           invoke(IPC.TASK_GET_ALL),
           invoke(IPC.GROUP_GET_ALL),
+          invoke(IPC.SETTINGS_GET_ALL),
         ]);
         taskStore.setTasks(tasks);
         taskStore.setGroups(groups);
+        settingsStore.setAll(allSettings);
       } finally {
         taskStore.setLoading(false);
       }
@@ -55,7 +59,7 @@ export default function App() {
       case 'timer':
         return (
           <div className="flex-1 flex flex-col items-center justify-center gap-8">
-            <TimerDisplay />
+            <TimerDisplay onNavigateToTasks={() => setActiveTab('tasks')} />
             <TimerControls />
           </div>
         );
@@ -85,7 +89,7 @@ export default function App() {
   };
 
   return (
-    <AppShell activeTab={activeTab} onTabChange={setActiveTab}>
+    <AppShell activeTab={activeTab} onTabChange={setActiveTab} onNavigateToTasks={() => setActiveTab('tasks')}>
       {renderContent()}
     </AppShell>
   );

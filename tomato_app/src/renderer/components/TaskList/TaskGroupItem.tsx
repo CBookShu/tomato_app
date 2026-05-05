@@ -53,8 +53,10 @@ export function TaskGroupItem({ group, tasks }: TaskGroupItemProps) {
     // Persist to database
     try {
       await invoke(IPC.TASK_CREATE, {
-        title,
-        groupId: group.id,
+        input: {
+          title,
+          groupId: group.id,
+        },
       });
     } catch (error) {
       console.error('Failed to create task:', error);

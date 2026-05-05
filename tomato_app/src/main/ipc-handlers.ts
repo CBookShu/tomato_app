@@ -3,12 +3,18 @@ import { IPC } from '../shared/ipc-channels.js';
 import { PomodoroTimer } from '@pomodoro/core';
 import type { TaskManager, StatsRepository, SettingsRepository } from '@pomodoro/core';
 import type { PomodoroConfig } from '@pomodoro/core';
+import { updateTrayIcon, updateTrayTime, setTrayTaskTitle } from './tray.js';
+import type { TimerStatus } from './tray.js';
 
 let timer: PomodoroTimer | null = null;
 let taskManager: TaskManager | null = null;
 let statsRepo: StatsRepository | null = null;
 let settingsRepo: SettingsRepository | null = null;
 let currentWindow: BrowserWindow | null = null;
+let onPomodoroComplete: (() => void) | null = null;
+let onBreakComplete: (() => void) | null = null;
+let currentTimerStatus: TimerStatus = 'idle';
+let currentRemainingTime: number = 0;
 
 async function getTimerConfig(): Promise<Partial<PomodoroConfig>> {
   if (!settingsRepo) {
@@ -29,9 +35,29 @@ async function getTimerConfig(): Promise<Partial<PomodoroConfig>> {
 }
 
 function setupTimerEvents(t: PomodoroTimer, win: BrowserWindow | null): void {
-  t.on('tick', (remainingTime: number) => win?.webContents.send(IPC.TIMER_TICK, remainingTime));
-  t.on('statusChange', (status: string) => win?.webContents.send(IPC.TIMER_STATUS_CHANGE, status));
-  t.on('complete', (type: 'work' | 'break') => win?.webContents.send(IPC.TIMER_COMPLETE, type));
+  t.on('tick', (remainingTime: number) => {
+    currentRemainingTime = remainingTime;
+    win?.webContents.send(IPC.TIMER_TICK, remainingTime);
+    updateTrayTime(currentTimerStatus, remainingTime);
+  });
+  t.on('statusChange', (status: string, remainingTime: number) => {
+    currentTimerStatus = status as TimerStatus;
+    currentRemainingTime = remainingTime;
+    win?.webContents.send(IPC.TIMER_STATUS_CHANGE, status, remainingTime);
+    if (status === 'idle') {
+      setTrayTaskTitle(undefined);
+    }
+    updateTrayIcon(status as TimerStatus, remainingTime);
+  });
+  t.on('complete', (type: 'work' | 'break') => {
+    win?.webContents.send(IPC.TIMER_COMPLETE, type);
+    // Show notification directly from main process
+    if (type === 'work') {
+      onPomodoroComplete?.();
+    } else {
+      onBreakComplete?.();
+    }
+  });
 }
 
 async function getTimer(): Promise<PomodoroTimer> {
@@ -60,16 +86,23 @@ export function registerIpcHandlers(
   _taskManager?: TaskManager,
   _statsRepo?: StatsRepository,
   _settingsRepo?: SettingsRepository,
+  callbacks?: {
+    onPomodoroComplete?: () => void;
+    onBreakComplete?: () => void;
+  },
 ) {
   taskManager = _taskManager ?? null;
   statsRepo = _statsRepo ?? null;
   settingsRepo = _settingsRepo ?? null;
+  onPomodoroComplete = callbacks?.onPomodoroComplete ?? null;
+  onBreakComplete = callbacks?.onBreakComplete ?? null;
 
   // Timer handlers
   ipcMain.handle(IPC.TIMER_START, async (_event, payload?: { taskId?: string }) => {
     currentWindow = getWindow();
     const t = await getTimer();
     t.start(payload?.taskId);
+    return t.getState();
   });
 
   ipcMain.handle(IPC.TIMER_PAUSE, async () => (await getTimer()).pause());

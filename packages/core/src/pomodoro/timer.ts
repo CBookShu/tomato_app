@@ -3,7 +3,7 @@ import { transition } from './state-machine.js';
 
 interface TimerEventPayload {
   tick: [remainingTime: number];
-  statusChange: [status: TimerStatus];
+  statusChange: [status: TimerStatus, remainingTime: number];
   complete: [completionType: 'work' | 'break'];
 }
 
@@ -108,7 +108,7 @@ export class PomodoroTimer {
     const oldStatus = this.state.status;
     this.state = newState;
     if (newState.status !== oldStatus) {
-      this.emit('statusChange', newState.status);
+      this.emit('statusChange', newState.status, newState.remainingTime);
     }
   }
 

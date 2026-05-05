@@ -22,8 +22,13 @@ export function useTimer() {
       store.tick(remainingTime as number);
     });
 
-    const unsubStatus = listen(IPC.TIMER_STATUS_CHANGE, (status: unknown) => {
-      store.setState({ ...useTimerStore.getState(), status: status as TimerState['status'] });
+    const unsubStatus = listen(IPC.TIMER_STATUS_CHANGE, (status: unknown, remainingTime?: unknown) => {
+      const state: TimerState = {
+        ...useTimerStore.getState(),
+        status: status as TimerState['status'],
+        remainingTime: (remainingTime as number) ?? useTimerStore.getState().remainingTime,
+      };
+      store.setState(state);
     });
 
     const unsubComplete = listen(IPC.TIMER_COMPLETE, (_type: unknown) => {

@@ -24,7 +24,11 @@ function formatTime(seconds: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-export function StatusBar() {
+interface StatusBarProps {
+  onNavigateToTasks?: () => void;
+}
+
+export function StatusBar({ onNavigateToTasks }: StatusBarProps) {
   const status = useTimerStore((s) => s.status);
   const remainingTime = useTimerStore((s) => s.remainingTime);
   const currentTaskId = useTimerStore((s) => s.currentTaskId);
@@ -42,6 +46,7 @@ export function StatusBar() {
   const handleTaskClick = () => {
     if (currentTask) {
       selectTask(currentTask.id);
+      onNavigateToTasks?.();
     }
   };
 

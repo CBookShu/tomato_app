@@ -8,6 +8,7 @@ interface AppShellProps {
   children: React.ReactNode;
   showTaskTree?: boolean;
   taskDetail?: React.ReactNode;
+  onNavigateToTasks?: () => void;
 }
 
 export function AppShell({
@@ -16,6 +17,7 @@ export function AppShell({
   children,
   showTaskTree = false,
   taskDetail,
+  onNavigateToTasks,
 }: AppShellProps) {
   return (
     <div className="flex h-screen flex-col bg-white dark:bg-gray-900">
@@ -34,7 +36,7 @@ export function AppShell({
       </div>
 
       {/* 底部状态栏 */}
-      <StatusBar />
+      <StatusBar onNavigateToTasks={onNavigateToTasks} />
     </div>
   );
 }

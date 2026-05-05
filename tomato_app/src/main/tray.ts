@@ -8,7 +8,7 @@ let currentTaskTitle: string | undefined = undefined;
 export type TimerStatus = 'idle' | 'working' | 'paused' | 'breaking' | 'long-break';
 
 function generateTrayIcon(status: TimerStatus, timeStr?: string): Electron.NativeImage {
-  const width = 28;
+  const width = 44;  // Wider to accommodate text
   const height = 44;
   const canvas = Buffer.alloc(width * height * 4);
 
@@ -24,9 +24,9 @@ function generateTrayIcon(status: TimerStatus, timeStr?: string): Electron.Nativ
   const alpha = status === 'idle' ? 102 : 255; // 40% opacity for idle
 
   // Draw tomato shape (circle)
-  const centerX = width / 2;
-  const centerY = 16;
-  const radius = 11;
+  const centerX = 12;
+  const centerY = 22;
+  const radius = 10;
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -38,6 +38,54 @@ function generateTrayIcon(status: TimerStatus, timeStr?: string): Electron.Nativ
         canvas[idx + 1] = g;
         canvas[idx + 2] = b;
         canvas[idx + 3] = alpha;
+      }
+    }
+  }
+
+  // Draw time text if available
+  if (timeStr && timeStr.length >= 4) {
+    // Simple digit rendering - each digit is 5x7
+    const digits: Record<string, number[][]> = {
+      '0': [[1,1,1,1,1],[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[1,1,1,1,1]],
+      '1': [[0,0,1,0,0],[0,1,1,0,0],[1,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[1,1,1,1,1]],
+      '2': [[1,1,1,1,1],[0,0,0,0,1],[0,0,0,0,1],[1,1,1,1,1],[1,0,0,0,0],[1,0,0,0,0],[1,1,1,1,1]],
+      '3': [[1,1,1,1,1],[0,0,0,0,1],[0,0,0,0,1],[1,1,1,1,1],[0,0,0,0,1],[0,0,0,0,1],[1,1,1,1,1]],
+      '4': [[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[1,1,1,1,1],[0,0,0,0,1],[0,0,0,0,1],[0,0,0,0,1]],
+      '5': [[1,1,1,1,1],[1,0,0,0,0],[1,0,0,0,0],[1,1,1,1,1],[0,0,0,0,1],[0,0,0,0,1],[1,1,1,1,1]],
+      '6': [[1,1,1,1,1],[1,0,0,0,0],[1,0,0,0,0],[1,1,1,1,1],[1,0,0,0,1],[1,0,0,0,1],[1,1,1,1,1]],
+      '7': [[1,1,1,1,1],[0,0,0,0,1],[0,0,0,0,1],[0,0,0,0,1],[0,0,0,0,1],[0,0,0,0,1],[0,0,0,0,1]],
+      '8': [[1,1,1,1,1],[1,0,0,0,1],[1,0,0,0,1],[1,1,1,1,1],[1,0,0,0,1],[1,0,0,0,1],[1,1,1,1,1]],
+      '9': [[1,1,1,1,1],[1,0,0,0,1],[1,0,0,0,1],[1,1,1,1,1],[0,0,0,0,1],[0,0,0,0,1],[1,1,1,1,1]],
+      ':': [[0,0,0,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,0,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,0,0,0]],
+    };
+
+    const startX = 24;
+    const startY = 15;
+    const pixelSize = 2;
+
+    for (let i = 0; i < timeStr.length && i < 5; i++) {
+      const char = timeStr[i];
+      const pattern = digits[char];
+      if (pattern) {
+        for (let row = 0; row < pattern.length; row++) {
+          for (let col = 0; col < pattern[row].length; col++) {
+            if (pattern[row][col]) {
+              for (let py = 0; py < pixelSize; py++) {
+                for (let px = 0; px < pixelSize; px++) {
+                  const x = startX + i * 6 + col * pixelSize + px;
+                  const y = startY + row * pixelSize + py;
+                  if (x < width && y < height) {
+                    const idx = (y * width + x) * 4;
+                    canvas[idx] = 255;     // white text
+                    canvas[idx + 1] = 255;
+                    canvas[idx + 2] = 255;
+                    canvas[idx + 3] = 255;
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

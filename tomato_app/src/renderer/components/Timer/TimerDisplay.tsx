@@ -1,7 +1,11 @@
 import { useTimerStore } from '@/stores/timer-store.js';
 import { useTaskStore } from '@/stores/task-store.js';
 
-export function TimerDisplay() {
+interface TimerDisplayProps {
+  onNavigateToTasks?: () => void;
+}
+
+export function TimerDisplay({ onNavigateToTasks }: TimerDisplayProps) {
   const status = useTimerStore((s) => s.status);
   const formattedTime = useTimerStore((s) => s.formattedTime());
   const currentTaskId = useTimerStore((s) => s.currentTaskId);
@@ -20,6 +24,7 @@ export function TimerDisplay() {
   const handleTaskClick = () => {
     if (currentTask) {
       selectTask(currentTask.id);
+      onNavigateToTasks?.();
     }
   };
 
