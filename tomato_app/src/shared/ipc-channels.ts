@@ -14,6 +14,11 @@ export const IPC = {
   TIMER_STATUS_CHANGE: 'timer:statusChange',
   TIMER_COMPLETE: 'timer:complete',
 
+  // Tray actions
+  TRAY_PAUSE: 'tray:pause',
+  TRAY_STOP: 'tray:stop',
+  TRAY_SKIP_BREAK: 'tray:skipBreak',
+
   // Tasks
   TASK_CREATE: 'task:create',
   TASK_GET: 'task:get',
@@ -84,6 +89,11 @@ export interface IpcChannelMap {
   [IPC.TIMER_TICK]: { request: void; response: (remainingTime: number) => void };
   [IPC.TIMER_STATUS_CHANGE]: { request: void; response: (status: string) => void };
   [IPC.TIMER_COMPLETE]: { request: void; response: (type: 'work' | 'break') => void };
+
+  // Tray actions
+  [IPC.TRAY_PAUSE]: { request: void; response: void };
+  [IPC.TRAY_STOP]: { request: void; response: void };
+  [IPC.TRAY_SKIP_BREAK]: { request: void; response: void };
 }
 
 export type IpcEventChannel = typeof IPC.TIMER_TICK | typeof IPC.TIMER_STATUS_CHANGE | typeof IPC.TIMER_COMPLETE;
