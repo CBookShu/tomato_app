@@ -1,5 +1,6 @@
-import { Notification, BrowserWindow, session } from 'electron';
+import { Notification, BrowserWindow } from 'electron';
 import { IPC } from '../shared/ipc-channels.js';
+import { safeSend } from './safe-send.js';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -20,17 +21,6 @@ export function sendNotification(
   if (!Notification.isSupported()) {
     console.warn('[Notification] Not supported');
     return;
-  }
-
-  if (process.platform === 'darwin') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sessionAny = session.defaultSession as any;
-    const permission = sessionAny.getPermissionStatus?.('notifications') ?? 'unknown';
-    console.log(`[Notification] Permission: ${permission}`);
-    if (permission !== 'granted') {
-      console.warn('[Notification] Permission not granted');
-      return;
-    }
   }
 
   const notification = new Notification({
@@ -63,7 +53,7 @@ export function notifyPomodoroComplete() {
       },
     },
   ]);
-  mainWindow?.webContents.send(IPC.PLAY_SOUND, 'pomodoro-end');
+  safeSend(mainWindow, IPC.PLAY_SOUND, 'pomodoro-end');
 }
 
 export function notifyBreakComplete() {
@@ -77,5 +67,5 @@ export function notifyBreakComplete() {
       },
     },
   ]);
-  mainWindow?.webContents.send(IPC.PLAY_SOUND, 'break-end');
+  safeSend(mainWindow, IPC.PLAY_SOUND, 'break-end');
 }
