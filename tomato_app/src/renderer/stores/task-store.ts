@@ -59,7 +59,9 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       // Expand the group containing this task
       set((s) => {
         const next = new Set(s.collapsedGroups);
-        next.delete(task.groupId);
+        if (task.groupId) {
+          next.delete(task.groupId);
+        }
         return { selectedTaskId: id, collapsedGroups: next };
       });
     } else {

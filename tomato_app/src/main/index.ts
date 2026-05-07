@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, session } from 'electron';
 import { createWindow } from './window.js';
 import { registerIpcHandlers } from './ipc-handlers.js';
 import { initDatabase } from './database.js';
@@ -9,7 +9,23 @@ import { IPC } from '../shared/ipc-channels.js';
 
 let mainWindow: BrowserWindow | null = null;
 
+function setupNotificationPermissions() {
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
+    if (permission === 'notifications') {
+      return true;
+    }
+    return false;
+  });
+
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    if (permission === 'notifications') {
+      callback(true);
+    }
+  });
+}
+
 app.whenReady().then(async () => {
+  setupNotificationPermissions();
   const { taskManager, statsRepo, settingsRepo } = initDatabase();
   await taskManager.initialize();
 

@@ -27,3 +27,4 @@ export { TaskRepository } from './db/task-repository.js';
 export { TaskGroupRepository } from './db/task-group-repository.js';
 export { StatsRepository } from './db/stats-repository.js';
 export { SettingsRepository } from './db/settings-repository.js';
+export * from './db/schema.js';

@@ -1,5 +1,11 @@
 import { Tray, Menu, nativeImage, BrowserWindow, app } from 'electron';
 import { IPC } from '../shared/ipc-channels.js';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 let tray: Tray | null = null;
 let mainWindow: BrowserWindow | null = null;
@@ -7,90 +13,75 @@ let currentTaskTitle: string | undefined = undefined;
 
 export type TimerStatus = 'idle' | 'working' | 'paused' | 'breaking' | 'long-break';
 
-function generateTrayIcon(status: TimerStatus, timeStr?: string): Electron.NativeImage {
-  const width = 44;  // Wider to accommodate text
-  const height = 44;
-  const canvas = Buffer.alloc(width * height * 4);
+/**
+ * 加载预制 Template Image 图标
+ * macOS Template Image 规范：
+ * - 黑色轮廓 + alpha 通道
+ * - 文件名以 Template 结尾
+ * - 系统自动适配深浅主题
+ * - Electron 自动加载 @2x 版本用于 Retina 屏幕
+ */
+function loadTrayIcon(status: TimerStatus): Electron.NativeImage {
+  const iconName = status === 'breaking' || status === 'long-break' ? 'breaking' :
+                   status === 'working' ? 'working' :
+                   status === 'paused' ? 'paused' : 'idle';
 
-  const colors: Record<string, [number, number, number]> = {
-    working: [239, 68, 68],    // red #EF4444
-    breaking: [34, 197, 94],   // green #22C55E
-    'long-break': [34, 197, 94],
-    paused: [251, 146, 60],    // orange
-    idle: [156, 163, 175],     // gray
-  };
+  const iconsDir = path.join(__dirname, '..', '..', 'resources', 'icons');
+  // 只传递基本文件名，Electron 会自动查找 @2x 版本
+  const iconPath = path.join(iconsDir, `${iconName}Template.png`);
 
-  const [r, g, b] = colors[status] || colors.idle;
-  const alpha = status === 'idle' ? 102 : 255; // 40% opacity for idle
+  // 检查图标文件是否存在
+  if (fs.existsSync(iconPath)) {
+    const image = nativeImage.createFromPath(iconPath);
+    // 设置为模板图标，macOS 会自动根据主题调整颜色
+    image.setTemplateImage(true);
+    return image;
+  }
 
-  // Draw tomato shape (circle)
-  const centerX = 12;
-  const centerY = 22;
-  const radius = 10;
+  // Fallback: 创建简单的黑色模板图标
+  return createFallbackTemplateIcon();
+}
 
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = (y * width + x) * 4;
+/**
+ * Fallback: 创建简单的黑色圆形模板图标
+ */
+function createFallbackTemplateIcon(): Electron.NativeImage {
+  const size = 16;
+  const canvas = Buffer.alloc(size * size * 4);
+
+  // 绘制黑色圆形（Template Image 标准）
+  const centerX = size / 2;
+  const centerY = size / 2;
+  const radius = 6;
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const idx = (y * size + x) * 4;
       const dx = x - centerX;
       const dy = y - centerY;
-      if (dx * dx + dy * dy <= radius * radius) {
-        canvas[idx] = r;
-        canvas[idx + 1] = g;
-        canvas[idx + 2] = b;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance <= radius - 0.5) {
+        // 完全在圆内 - 黑色不透明
+        canvas[idx] = 0;
+        canvas[idx + 1] = 0;
+        canvas[idx + 2] = 0;
+        canvas[idx + 3] = 255;
+      } else if (distance <= radius + 0.5) {
+        // 边缘 - 抗锯齿
+        const alpha = Math.round(255 * (1 - (distance - radius + 0.5)));
+        canvas[idx] = 0;
+        canvas[idx + 1] = 0;
+        canvas[idx + 2] = 0;
         canvas[idx + 3] = alpha;
       }
+      // 圆外保持透明（alpha = 0）
     }
   }
 
-  // Draw time text if available
-  if (timeStr && timeStr.length >= 4) {
-    // Simple digit rendering - each digit is 5x7
-    const digits: Record<string, number[][]> = {
-      '0': [[1,1,1,1,1],[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[1,1,1,1,1]],
-      '1': [[0,0,1,0,0],[0,1,1,0,0],[1,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[1,1,1,1,1]],
-      '2': [[1,1,1,1,1],[0,0,0,0,1],[0,0,0,0,1],[1,1,1,1,1],[1,0,0,0,0],[1,0,0,0,0],[1,1,1,1,1]],
-      '3': [[1,1,1,1,1],[0,0,0,0,1],[0,0,0,0,1],[1,1,1,1,1],[0,0,0,0,1],[0,0,0,0,1],[1,1,1,1,1]],
-      '4': [[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[1,1,1,1,1],[0,0,0,0,1],[0,0,0,0,1],[0,0,0,0,1]],
-      '5': [[1,1,1,1,1],[1,0,0,0,0],[1,0,0,0,0],[1,1,1,1,1],[0,0,0,0,1],[0,0,0,0,1],[1,1,1,1,1]],
-      '6': [[1,1,1,1,1],[1,0,0,0,0],[1,0,0,0,0],[1,1,1,1,1],[1,0,0,0,1],[1,0,0,0,1],[1,1,1,1,1]],
-      '7': [[1,1,1,1,1],[0,0,0,0,1],[0,0,0,0,1],[0,0,0,0,1],[0,0,0,0,1],[0,0,0,0,1],[0,0,0,0,1]],
-      '8': [[1,1,1,1,1],[1,0,0,0,1],[1,0,0,0,1],[1,1,1,1,1],[1,0,0,0,1],[1,0,0,0,1],[1,1,1,1,1]],
-      '9': [[1,1,1,1,1],[1,0,0,0,1],[1,0,0,0,1],[1,1,1,1,1],[0,0,0,0,1],[0,0,0,0,1],[1,1,1,1,1]],
-      ':': [[0,0,0,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,0,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,0,0,0]],
-    };
-
-    const startX = 24;
-    const startY = 15;
-    const pixelSize = 2;
-
-    for (let i = 0; i < timeStr.length && i < 5; i++) {
-      const char = timeStr[i];
-      const pattern = digits[char];
-      if (pattern) {
-        for (let row = 0; row < pattern.length; row++) {
-          for (let col = 0; col < pattern[row].length; col++) {
-            if (pattern[row][col]) {
-              for (let py = 0; py < pixelSize; py++) {
-                for (let px = 0; px < pixelSize; px++) {
-                  const x = startX + i * 6 + col * pixelSize + px;
-                  const y = startY + row * pixelSize + py;
-                  if (x < width && y < height) {
-                    const idx = (y * width + x) * 4;
-                    canvas[idx] = 255;     // white text
-                    canvas[idx + 1] = 255;
-                    canvas[idx + 2] = 255;
-                    canvas[idx + 3] = 255;
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  return nativeImage.createFromBuffer(canvas, { width, height });
+  const image = nativeImage.createFromBuffer(canvas, { width: size, height: size });
+  image.setTemplateImage(true);
+  return image;
 }
 
 function formatTime(seconds: number): string {
@@ -101,11 +92,11 @@ function formatTime(seconds: number): string {
 
 export function createTray(getWindow: () => BrowserWindow | null): Tray {
   mainWindow = getWindow();
-  const icon = generateTrayIcon('idle');
+  const icon = loadTrayIcon('idle');
   tray = new Tray(icon);
   tray.setToolTip('Tomato - 就绪');
 
-  // Double-click to open/focus window
+  // 双击打开/聚焦窗口
   tray.on('double-click', () => {
     const win = mainWindow || getWindow();
     if (win) {
@@ -114,7 +105,7 @@ export function createTray(getWindow: () => BrowserWindow | null): Tray {
     }
   });
 
-  // Single click toggles window visibility
+  // 单击切换窗口可见性
   tray.on('click', () => {
     const win = mainWindow || getWindow();
     if (win) {
@@ -157,7 +148,7 @@ function updateTrayMenu(status: TimerStatus, remainingTime: number) {
 
   menuItems.push({ type: 'separator' });
 
-  // Add action buttons based on status
+  // 根据状态添加操作按钮
   if (status === 'working') {
     menuItems.push({
       label: '⏸ 暂停',
@@ -199,8 +190,7 @@ function updateTrayMenu(status: TimerStatus, remainingTime: number) {
 export function updateTrayIcon(status: TimerStatus, remainingTime?: number) {
   if (!tray) return;
 
-  const timeStr = remainingTime && remainingTime > 0 ? formatTime(remainingTime) : undefined;
-  const icon = generateTrayIcon(status, timeStr);
+  const icon = loadTrayIcon(status);
   tray.setImage(icon);
 
   const statusLabels: Record<string, string> = {
@@ -211,6 +201,7 @@ export function updateTrayIcon(status: TimerStatus, remainingTime?: number) {
     'long-break': '长休息',
   };
 
+  const timeStr = remainingTime && remainingTime > 0 ? formatTime(remainingTime) : '';
   const timeDisplay = timeStr ? ` ${timeStr}` : '';
   tray.setToolTip(`Tomato - ${statusLabels[status] || '就绪'}${timeDisplay}`);
 

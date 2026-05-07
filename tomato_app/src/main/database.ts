@@ -10,6 +10,8 @@ import path from 'node:path';
 let db: BetterSQLite3Database | null = null;
 let sqlite: Database.Database | null = null;
 let taskManager: TaskManager | null = null;
+let taskRepo: TaskRepository | null = null;
+let groupRepo: TaskGroupRepository | null = null;
 let statsRepo: StatsRepository | null = null;
 let settingsRepo: SettingsRepository | null = null;
 
@@ -32,6 +34,7 @@ export function initDatabase() {
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
       description TEXT,
+      notes TEXT DEFAULT '',
       completed_pomodoros INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'todo',
       group_id TEXT REFERENCES task_groups(id),
@@ -55,8 +58,8 @@ export function initDatabase() {
 
   db = drizzle(sqlite);
 
-  const taskRepo = new TaskRepository(db);
-  const groupRepo = new TaskGroupRepository(db);
+  taskRepo = new TaskRepository(db);
+  groupRepo = new TaskGroupRepository(db);
   taskManager = new TaskManager(taskRepo, groupRepo);
   statsRepo = new StatsRepository(db);
   settingsRepo = new SettingsRepository(db);
@@ -69,6 +72,16 @@ export function getTaskManager() {
   return taskManager;
 }
 
+export function getTaskRepo() {
+  if (!taskRepo) throw new Error('Database not initialized');
+  return taskRepo;
+}
+
+export function getGroupRepo() {
+  if (!groupRepo) throw new Error('Database not initialized');
+  return groupRepo;
+}
+
 export function getStatsRepo() {
   if (!statsRepo) throw new Error('Database not initialized');
   return statsRepo;
@@ -79,6 +92,16 @@ export function getSettingsRepo() {
   return settingsRepo;
 }
 
+export function getDb() {
+  if (!db) throw new Error('Database not initialized');
+  return db;
+}
+
+export function getSqlite(): Database.Database {
+  if (!sqlite) throw new Error('Database not initialized');
+  return sqlite;
+}
+
 export function clearDatabase() {
   if (!sqlite) return;
 
@@ -86,4 +109,13 @@ export function clearDatabase() {
   sqlite.exec('DELETE FROM task_groups');
   sqlite.exec('DELETE FROM daily_stats');
   // 保留 settings 表，但重置为默认值
+}
+
+export function clearAllData() {
+  if (!sqlite) return;
+
+  sqlite.exec('DELETE FROM tasks');
+  sqlite.exec('DELETE FROM task_groups');
+  sqlite.exec('DELETE FROM daily_stats');
+  sqlite.exec('DELETE FROM settings');
 }

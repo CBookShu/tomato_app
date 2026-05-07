@@ -3,14 +3,81 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card.j
 import { Label } from '@/components/ui/label.js';
 import { Input } from '@/components/ui/input.js';
 import { Checkbox } from '@/components/ui/checkbox.js';
+import { Button } from '@/components/ui/button.js';
 import { useSettingsStore } from '@/stores/settings-store.js';
 import { useIpc } from '@/hooks/useIpc.js';
 import { IPC } from '@shared/ipc-channels.js';
+import type { ExportData } from '@shared/ipc-channels.js';
 
 export function SettingsPage() {
   const { invoke } = useIpc();
   const { settings, setAll, set } = useSettingsStore();
   const [loaded, setLoaded] = useState(false);
+
+  // 数据导出
+  const handleExport = async () => {
+    try {
+      const data = await invoke(IPC.DATA_EXPORT);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `tomato-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('导出失败:', error);
+      alert('导出失败，请查看控制台获取详细信息');
+    }
+  };
+
+  // 数据导入
+  const handleImport = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text) as ExportData;
+
+        // 验证数据结构
+        if (!data.version || !data.data) {
+          alert('无效的备份文件：缺少版本或数据字段');
+          return;
+        }
+
+        if (!Array.isArray(data.data.tasks) || !Array.isArray(data.data.groups)) {
+          alert('无效的备份文件：数据格式错误');
+          return;
+        }
+
+        // 确认对话框
+        const useReplaceMode = confirm(
+          '选择导入模式：\n\n确定 = 替换模式（清空现有数据）\n取消 = 合并模式（保留现有数据）',
+        );
+        const mode = useReplaceMode ? 'replace' : 'merge';
+
+        const result = await invoke(IPC.DATA_IMPORT, { data, mode });
+        if (result.success) {
+          alert('导入成功！应用将重新加载以应用新数据。');
+          // 刷新页面以重新加载数据
+          setTimeout(() => {
+            window.location.reload();
+          }, 500);
+        } else {
+          alert(`导入失败：${result.message}`);
+        }
+      } catch (error) {
+        console.error('导入失败:', error);
+        alert('导入失败，请确保文件格式正确');
+      }
+    };
+    input.click();
+  };
 
   // Apply dark mode on mount and when settings change
   useEffect(() => {
@@ -134,6 +201,25 @@ export function SettingsPage() {
               onCheckedChange={(v) => updateKey('auto_start', v ? 'true' : 'false')}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">数据管理</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <div className="flex gap-3">
+            <Button onClick={handleExport} variant="outline" className="flex-1">
+              导出数据
+            </Button>
+            <Button onClick={handleImport} variant="outline" className="flex-1">
+              导入数据
+            </Button>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            导出为 JSON 格式，可用于备份或迁移数据。导入时选择"替换"将清空现有数据，"合并"将保留现有数据。
+          </p>
         </CardContent>
       </Card>
     </div>

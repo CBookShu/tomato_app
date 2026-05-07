@@ -1,6 +1,18 @@
 import type { Task, TaskGroup, NewTask, NewTaskGroup, TaskStatus } from '@pomodoro/core';
 import type { DailyStats, MonthlyStats, TimerState } from '@pomodoro/core';
 
+// Data export/import types
+export interface ExportData {
+  version: string;
+  exportedAt: string;
+  data: {
+    tasks: Task[];
+    groups: TaskGroup[];
+    stats: DailyStats[];
+    settings: Record<string, string>;
+  };
+}
+
 // Channel name constants
 export const IPC = {
   // Timer
@@ -49,6 +61,13 @@ export const IPC = {
   SETTINGS_SET: 'settings:set',
   SETTINGS_GET_ALL: 'settings:getAll',
   SETTINGS_DELETE: 'settings:delete',
+
+  // Data
+  DATA_EXPORT: 'data:export',
+  DATA_IMPORT: 'data:import',
+
+  // Sound
+  PLAY_SOUND: 'play-sound',
 } as const;
 
 // Request/Response type pairs for each channel
@@ -65,7 +84,7 @@ export interface IpcChannelMap {
   [IPC.TASK_GET]: { request: { id: string }; response: Task | null };
   [IPC.TASK_GET_ALL]: { request: void; response: Task[] };
   [IPC.TASK_GET_BY_STATUS]: { request: { status: TaskStatus }; response: Task[] };
-  [IPC.TASK_EDIT]: { request: { id: string; updates: Partial<Pick<Task, 'title' | 'description' | 'tags'>> }; response: Task };
+  [IPC.TASK_EDIT]: { request: { id: string; updates: Partial<Pick<Task, 'title' | 'description' | 'tags' | 'notes'>> }; response: Task };
   [IPC.TASK_COMPLETE]: { request: { id: string }; response: Task };
   [IPC.TASK_DELETE]: { request: { id: string }; response: void };
   [IPC.TASK_MOVE_TO_GROUP]: { request: { taskId: string; newGroupId: string }; response: Task };
@@ -87,10 +106,18 @@ export interface IpcChannelMap {
   [IPC.SETTINGS_GET_ALL]: { request: void; response: Record<string, string> };
   [IPC.SETTINGS_DELETE]: { request: { key: string }; response: void };
 
+  // Data export/import
+  [IPC.DATA_EXPORT]: { request: void; response: ExportData };
+  [IPC.DATA_IMPORT]: {
+    request: { data: ExportData; mode: 'merge' | 'replace' };
+    response: { success: boolean; message: string };
+  };
+
   // Events from main -> renderer (no request)
   [IPC.TIMER_TICK]: { request: void; response: (remainingTime: number) => void };
   [IPC.TIMER_STATUS_CHANGE]: { request: void; response: (status: string) => void };
   [IPC.TIMER_COMPLETE]: { request: void; response: (type: 'work' | 'break') => void };
+  [IPC.PLAY_SOUND]: { request: void; response: (soundType: string) => void };
 
   // Tray actions
   [IPC.TRAY_PAUSE]: { request: void; response: void };
@@ -98,7 +125,11 @@ export interface IpcChannelMap {
   [IPC.TRAY_SKIP_BREAK]: { request: void; response: void };
 }
 
-export type IpcEventChannel = typeof IPC.TIMER_TICK | typeof IPC.TIMER_STATUS_CHANGE | typeof IPC.TIMER_COMPLETE;
+export type IpcEventChannel =
+  | typeof IPC.TIMER_TICK
+  | typeof IPC.TIMER_STATUS_CHANGE
+  | typeof IPC.TIMER_COMPLETE
+  | typeof IPC.PLAY_SOUND;
 
 declare global {
   interface Window {

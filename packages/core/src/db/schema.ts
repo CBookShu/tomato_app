@@ -13,6 +13,7 @@ export const tasks = sqliteTable('tasks', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   description: text('description'),
+  notes: text('notes').default(''),
   completedPomodoros: integer('completed_pomodoros').notNull().default(0),
   status: text('status').notNull().default('todo'),
   groupId: text('group_id').references(() => taskGroups.id),

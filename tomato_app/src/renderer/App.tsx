@@ -9,6 +9,7 @@ import { DailyStatsCard } from '@/components/Stats/DailyStatsCard.js';
 import { WeeklyTrend } from '@/components/Stats/WeeklyTrend.js';
 import { SettingsPage } from '@/components/Settings/SettingsPage.js';
 import { useIpc } from '@/hooks/useIpc.js';
+import { useSound } from '@/hooks/useSound.js';
 import { IPC } from '@shared/ipc-channels.js';
 import { useTaskStore } from '@/stores/task-store.js';
 import { useStatsStore } from '@/stores/stats-store.js';
@@ -22,6 +23,8 @@ export default function App() {
   const taskStore = useTaskStore();
   const statsStore = useStatsStore();
   const settingsStore = useSettingsStore();
+
+  useSound();
 
   useEffect(() => {
     async function loadData() {

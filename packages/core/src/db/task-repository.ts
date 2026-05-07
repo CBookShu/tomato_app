@@ -9,6 +9,7 @@ function rowToTask(row: typeof tasks.$inferSelect): Task {
     id: row.id,
     title: row.title,
     description: row.description ?? undefined,
+    notes: row.notes ?? undefined,
     completedPomodoros: row.completedPomodoros,
     status: row.status as Task['status'],
     groupId: row.groupId ?? undefined,
@@ -51,6 +52,7 @@ export class TaskRepository {
       id: task.id,
       title: task.title,
       description: task.description ?? null,
+      notes: task.notes ?? null,
       completedPomodoros: task.completedPomodoros,
       status: task.status,
       groupId: task.groupId ?? null,
@@ -70,6 +72,7 @@ export class TaskRepository {
     const values: Record<string, unknown> = {};
     if (updates.title !== undefined) values.title = updates.title;
     if (updates.description !== undefined) values.description = updates.description;
+    if (updates.notes !== undefined) values.notes = updates.notes;
     if (updates.completedPomodoros !== undefined) values.completedPomodoros = updates.completedPomodoros;
     if (updates.status !== undefined) values.status = updates.status;
     if (updates.groupId !== undefined) values.groupId = updates.groupId;

@@ -4,6 +4,7 @@ export interface Task {
   readonly id: string;
   readonly title: string;
   readonly description?: string;
+  readonly notes?: string;
   readonly completedPomodoros: number;
   readonly status: TaskStatus;
   readonly groupId?: string;

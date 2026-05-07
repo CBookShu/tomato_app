@@ -31,8 +31,22 @@ export function useTimer() {
       store.setState(state);
     });
 
-    const unsubComplete = listen(IPC.TIMER_COMPLETE, (_type: unknown) => {
+    const unsubComplete = listen(IPC.TIMER_COMPLETE, async (_type: unknown) => {
       if (_type === 'work') {
+        // 获取当前任务 ID 并累计番茄数
+        const currentTaskId = useTimerStore.getState().currentTaskId;
+        if (currentTaskId) {
+          try {
+            await invoke(IPC.TASK_INCREMENT_POMODORO, { id: currentTaskId });
+            // 获取更新后的任务并更新本地状态
+            const updatedTask = await invoke(IPC.TASK_GET, { id: currentTaskId });
+            if (updatedTask) {
+              useTaskStore.getState().updateTask(currentTaskId, updatedTask);
+            }
+          } catch (error) {
+            console.error('Failed to increment pomodoro:', error);
+          }
+        }
         store.setState({ ...useTimerStore.getState(), status: 'breaking' });
       }
     });

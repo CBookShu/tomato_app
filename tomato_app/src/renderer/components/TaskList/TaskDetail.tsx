@@ -5,6 +5,7 @@ import { Play, CheckCircle, Save } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { useIpc } from '@/hooks/useIpc.js';
 import { IPC } from '@shared/ipc-channels.js';
+import MDEditor from '@uiw/react-md-editor';
 
 export function TaskDetail() {
   const tasks = useTaskStore((s) => s.tasks);
@@ -26,9 +27,9 @@ export function TaskDetail() {
   // Sync notes with selected task
   useEffect(() => {
     if (task) {
-      setNotes(task.description || '');
+      setNotes(task.notes || '');
     }
-  }, [task?.id, task?.description]);
+  }, [task?.id, task?.notes]);
 
   const handleSaveNotes = async () => {
     if (!task) return;
@@ -36,12 +37,12 @@ export function TaskDetail() {
     setIsSaving(true);
     try {
       // Optimistic UI update
-      updateTask(task.id, { description: notes });
+      updateTask(task.id, { notes });
 
       // Persist to database
       await invoke(IPC.TASK_EDIT, {
         id: task.id,
-        updates: { description: notes },
+        updates: { notes },
       });
     } catch (error) {
       console.error('Failed to save notes:', error);
@@ -119,12 +120,17 @@ export function TaskDetail() {
               {isSaving ? '保存中...' : '保存'}
             </Button>
           </div>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="添加笔记..."
-            className="w-full h-40 p-3 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-tomato/50"
-          />
+          <div data-color-mode="auto">
+            <MDEditor
+              value={notes}
+              onChange={(val) => setNotes(val || '')}
+              preview="live"
+              height={300}
+              textareaProps={{
+                placeholder: '添加笔记...',
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>

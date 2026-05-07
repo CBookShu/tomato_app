@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@pomodoro/core": "*",
+    "@uiw/react-md-editor": "^4.1.0",
     "better-sqlite3": "^11.7.0",
     "drizzle-orm": "^0.39.0"
   },
@@ -44,6 +45,7 @@
     "electron": "33.4.11",
     "electron-builder": "^25.1.0",
     "lucide-react": "^0.460.0",
+    "pngjs": "^7.0.0",
     "postcss": "^8.4.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
@@ -66,7 +68,10 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "target": ["dmg", "zip"]
+      "target": [
+        "dmg",
+        "zip"
+      ]
     }
   }
 }
