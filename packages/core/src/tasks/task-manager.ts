@@ -1,4 +1,5 @@
 import { Task, TaskGroup, NewTask, NewTaskGroup, TaskStatus, DEFAULT_GROUP_ID } from '../types/task.js';
+import { DailyStats } from '../types/stats.js';
 import { generateId } from '../utils/id-generator.js';
 import { addTaskAtPosition, reorderTasks, removeTaskFromOrder } from './sorting.js';
 
@@ -19,6 +20,10 @@ export interface ITaskGroupRepository {
   create(group: TaskGroup): Promise<TaskGroup>;
   update(id: string, updates: Partial<TaskGroup>): Promise<TaskGroup>;
   delete(id: string): Promise<void>;
+}
+
+export interface IStatsRepository {
+  upsert(date: string, increment: { totalPomodoros?: number; completedTasks?: number; tasks?: string[] }): Promise<DailyStats>;
 }
 
 function makeTask(input: NewTask, groupId: string): Task {
@@ -52,6 +57,7 @@ export class TaskManager {
   constructor(
     private taskRepo: ITaskRepository,
     private groupRepo: ITaskGroupRepository,
+    private statsRepo?: IStatsRepository,
   ) {}
 
   async initialize(): Promise<void> {
@@ -101,20 +107,43 @@ export class TaskManager {
   }
 
   async completeTask(id: string): Promise<Task> {
-    return this.taskRepo.update(id, {
+    const task = await this.taskRepo.update(id, {
       status: 'completed',
       completedAt: new Date().toISOString(),
     });
+
+    // Update daily stats - increment completedTasks
+    if (this.statsRepo) {
+      const today = new Date().toISOString().slice(0, 10);
+      await this.statsRepo.upsert(today, {
+        completedTasks: 1,
+        tasks: [id],
+      });
+    }
+
+    return task;
   }
 
   async incrementPomodoro(id: string, dateStr?: string): Promise<Task> {
     const task = await this.taskRepo.findById(id);
     if (!task) throw new Error(`Task ${id} not found`);
-    return this.taskRepo.update(id, {
+
+    const updatedTask = await this.taskRepo.update(id, {
       completedPomodoros: task.completedPomodoros + 1,
       lastPomodoroTime: dateStr ?? new Date().toISOString().slice(0, 10),
       status: task.status === 'todo' ? 'in-progress' : task.status,
     });
+
+    // Update daily stats - increment totalPomodoros
+    if (this.statsRepo) {
+      const today = dateStr ?? new Date().toISOString().slice(0, 10);
+      await this.statsRepo.upsert(today, {
+        totalPomodoros: 1,
+        tasks: [id],
+      });
+    }
+
+    return updatedTask;
   }
 
   async deleteTask(id: string): Promise<void> {

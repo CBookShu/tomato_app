@@ -5,6 +5,7 @@ import { initDatabase } from './database.js';
 import { createTray, setTrayTaskTitle } from './tray.js';
 import { notifyPomodoroComplete, notifyBreakComplete, setNotificationWindow } from './notifications.js';
 import { registerShortcuts, unregisterShortcuts } from './shortcuts.js';
+import { safeSend } from './safe-send.js';
 import { IPC } from '../shared/ipc-channels.js';
 
 let mainWindow: BrowserWindow | null = null;
@@ -43,9 +44,9 @@ app.whenReady().then(async () => {
   });
 
   registerShortcuts({
-    onStartPause: () => mainWindow?.webContents.send(IPC.TIMER_START),
-    onStop: () => mainWindow?.webContents.send(IPC.TIMER_STOP),
-    onNewTask: () => mainWindow?.webContents.send('focus:newTask'),
+    onStartPause: () => safeSend(mainWindow, IPC.TIMER_START),
+    onStop: () => safeSend(mainWindow, IPC.TIMER_STOP),
+    onNewTask: () => safeSend(mainWindow, 'focus:newTask'),
   });
 
   // 测试环境专用 IPC
@@ -59,7 +60,7 @@ app.whenReady().then(async () => {
 
     ipcMain.handle('test:fast-forward', async (_event, seconds: number) => {
       // 发送时间加速事件到渲染进程
-      mainWindow?.webContents.send('test:fast-forward', seconds);
+      safeSend(mainWindow, 'test:fast-forward', seconds);
       return { success: true };
     });
   }

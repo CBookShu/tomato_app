@@ -6,6 +6,7 @@ import type { PomodoroConfig } from '@pomodoro/core';
 import { updateTrayIcon, updateTrayTime, setTrayTaskTitle } from './tray.js';
 import type { TimerStatus } from './tray.js';
 import { clearAllData, getSqlite } from './database.js';
+import { safeSend } from './safe-send.js';
 
 // ExportData 类型定义（与 shared/ipc-channels.ts 保持一致）
 interface ExportDataPayload {
@@ -61,20 +62,21 @@ async function getTimerConfig(): Promise<Partial<PomodoroConfig>> {
 function setupTimerEvents(t: PomodoroTimer, win: BrowserWindow | null): void {
   t.on('tick', (remainingTime: number) => {
     currentRemainingTime = remainingTime;
-    win?.webContents.send(IPC.TIMER_TICK, remainingTime);
+    safeSend(win, IPC.TIMER_TICK, remainingTime);
     updateTrayTime(currentTimerStatus, remainingTime);
   });
   t.on('statusChange', (status: string, remainingTime: number) => {
     currentTimerStatus = status as TimerStatus;
     currentRemainingTime = remainingTime;
-    win?.webContents.send(IPC.TIMER_STATUS_CHANGE, status, remainingTime);
+    const state = t.getState();
+    safeSend(win, IPC.TIMER_STATUS_CHANGE, status, remainingTime, state.currentTaskId);
     if (status === 'idle') {
       setTrayTaskTitle(undefined);
     }
     updateTrayIcon(status as TimerStatus, remainingTime);
   });
   t.on('complete', (type: 'work' | 'break') => {
-    win?.webContents.send(IPC.TIMER_COMPLETE, type);
+    safeSend(win, IPC.TIMER_COMPLETE, type);
     // Show notification directly from main process
     if (type === 'work') {
       onPomodoroComplete?.();
@@ -149,7 +151,11 @@ export function registerIpcHandlers(
     ipcMain.handle(IPC.TASK_GET_ALL, async () => taskManager!.getAllTasks());
     ipcMain.handle(IPC.TASK_GET_BY_STATUS, async (_e, payload) => taskManager!.getTasksByStatus(payload.status));
     ipcMain.handle(IPC.TASK_EDIT, async (_e, payload) => taskManager!.editTask(payload.id, payload.updates));
-    ipcMain.handle(IPC.TASK_COMPLETE, async (_e, payload) => taskManager!.completeTask(payload.id));
+    ipcMain.handle(IPC.TASK_COMPLETE, async (_e, payload) => {
+      const result = await taskManager!.completeTask(payload.id);
+      safeSend(currentWindow, IPC.TASK_COMPLETE_EVENT, payload.id);
+      return result;
+    });
     ipcMain.handle(IPC.TASK_DELETE, async (_e, payload) => taskManager!.deleteTask(payload.id));
     ipcMain.handle(IPC.TASK_MOVE_TO_GROUP, async (_e, payload) =>
       taskManager!.moveTaskToGroup(payload.taskId, payload.newGroupId),

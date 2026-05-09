@@ -1,19 +1,19 @@
 import { useCallback } from 'react';
 import { useTimerStore } from '@/stores/timer-store.js';
+import { useTaskStore } from '@/stores/task-store.js';
 import { useSettingsStore } from '@/stores/settings-store.js';
 import { useIpc } from './useIpc.js';
 import { IPC } from '@shared/ipc-channels.js';
 
 /**
- * 提供计时器控制函数
- * IPC 事件监听由 useTimerEvents 处理
+ * 只提供 start 函数，不注册 IPC 监听器
+ * 用于列表项等组件，避免重复注册监听器
  */
-export function useTimer() {
+export function useTimerStart() {
   const { invoke } = useIpc();
   const store = useTimerStore();
   const settings = useSettingsStore((s) => s.settings);
 
-  // Get configured pomodoro duration in seconds
   const getPomodoroDuration = useCallback(() => {
     const duration = parseInt(settings['pomodoro_duration'] || '25', 10);
     return duration * 60;
@@ -32,8 +32,7 @@ export function useTimer() {
 
     // Send task title to main for tray display
     if (taskId) {
-      const taskStore = await import('@/stores/task-store.js').then(m => m.useTaskStore.getState());
-      const task = taskStore.tasks.find(t => t.id === taskId);
+      const task = useTaskStore.getState().tasks.find(t => t.id === taskId);
       if (task) {
         window.electronAPI.invoke(IPC.TIMER_TASK_TITLE, task.title);
       }
@@ -42,25 +41,5 @@ export function useTimer() {
     }
   }, [store, getPomodoroDuration, invoke]);
 
-  const pause = useCallback(async () => {
-    store.setState({ ...useTimerStore.getState(), status: 'paused' });
-    await invoke(IPC.TIMER_PAUSE);
-  }, [store, invoke]);
-
-  const resume = useCallback(async () => {
-    store.setState({ ...useTimerStore.getState(), status: 'working' });
-    await invoke(IPC.TIMER_RESUME);
-  }, [store, invoke]);
-
-  const stop = useCallback(async () => {
-    store.setState({ status: 'idle', remainingTime: 0, currentCycle: store.currentCycle, currentTaskId: undefined });
-    await invoke(IPC.TIMER_STOP);
-    window.electronAPI.invoke(IPC.TIMER_TASK_TITLE, null);
-  }, [store, invoke]);
-
-  const skip = useCallback(async () => {
-    await invoke(IPC.TIMER_SKIP);
-  }, [invoke]);
-
-  return { ...store, start, pause, resume, stop, skip };
+  return { start };
 }

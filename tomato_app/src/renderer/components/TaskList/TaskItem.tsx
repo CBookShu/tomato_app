@@ -3,11 +3,12 @@ import { Button } from '@/components/ui/button.js';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog.js';
 import { cn } from '@/lib/utils.js';
 import type { Task } from '@pomodoro/core';
-import { GripVertical, Pencil, Trash2, Play } from 'lucide-react';
-import { useState } from 'react';
+import { GripVertical, Pencil, Trash2, Play, MoreHorizontal, CheckCircle } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 import { useTaskStore } from '@/stores/task-store.js';
 import { useTimerStore } from '@/stores/timer-store.js';
-import { useTimer } from '@/hooks/useTimer.js';
+import { useTimerStart } from '@/hooks/useTimerStart.js';
+import { useIpc } from '@/hooks/useIpc.js';
 import { IPC } from '@shared/ipc-channels.js';
 
 interface TaskItemProps {
@@ -19,18 +20,39 @@ export function TaskItem({ task, isSelected }: TaskItemProps) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(task.title);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const isCompleted = task.status === 'completed';
 
   const { updateTask, removeTask, selectTask } = useTaskStore();
-  const { start } = useTimer();
+  const { start } = useTimerStart();
+  const { invoke } = useIpc();
   const currentTaskId = useTimerStore((s) => s.currentTaskId);
   const isActive = task.id === currentTaskId;
 
-  const handleCheck = () => {
+  const handleCheck = async () => {
+    const newStatus = task.status === 'completed' ? 'todo' : 'completed';
+    const completedAt = task.status !== 'completed' ? new Date().toISOString() : undefined;
+
+    // Optimistic UI update
     updateTask(task.id, {
-      status: task.status === 'completed' ? 'todo' : 'completed',
-      completedAt: task.status !== 'completed' ? new Date().toISOString() : undefined,
+      status: newStatus,
+      completedAt,
     });
+
+    // Persist to database
+    try {
+      if (newStatus === 'completed') {
+        await invoke(IPC.TASK_COMPLETE, { id: task.id });
+      } else {
+        await invoke(IPC.TASK_EDIT, {
+          id: task.id,
+          updates: { status: newStatus, completedAt: undefined },
+        });
+      }
+    } catch (error) {
+      console.error('Failed to update task status:', error);
+    }
   };
 
   const handleStart = (e: React.MouseEvent) => {
@@ -38,10 +60,21 @@ export function TaskItem({ task, isSelected }: TaskItemProps) {
     start(task.id);
   };
 
-  const handleEdit = () => {
-    if (title.trim()) {
-      updateTask(task.id, { title: title.trim() });
-      setEditing(false);
+  const handleEdit = async () => {
+    if (!title.trim()) return;
+
+    // Optimistic UI update
+    updateTask(task.id, { title: title.trim() });
+    setEditing(false);
+
+    // Persist to database
+    try {
+      await invoke(IPC.TASK_EDIT, {
+        id: task.id,
+        updates: { title: title.trim() },
+      });
+    } catch (error) {
+      console.error('Failed to update task title:', error);
     }
   };
 
@@ -68,6 +101,20 @@ export function TaskItem({ task, isSelected }: TaskItemProps) {
   const handleClick = () => {
     selectTask(task.id);
   };
+
+  // 点击外部关闭菜单
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
 
   return (
     <div
@@ -115,16 +162,66 @@ export function TaskItem({ task, isSelected }: TaskItemProps) {
       {isActive && (
         <span data-testid="timer-indicator" className="text-sm shrink-0">🍅</span>
       )}
-      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleStart}>
-          <Play className="h-3 w-3" />
+      <div className="relative" ref={menuRef}>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuOpen(!menuOpen);
+          }}
+        >
+          <MoreHorizontal className="h-3.5 w-3.5" />
         </Button>
-        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleEditClick}>
-          <Pencil className="h-3 w-3" />
-        </Button>
-        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleDelete}>
-          <Trash2 className="h-3 w-3" />
-        </Button>
+        {menuOpen && (
+          <div className="absolute right-0 top-full mt-1 w-28 rounded-md border bg-white dark:bg-gray-800 shadow-lg z-10 py-1">
+            <button
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleStart(e);
+                setMenuOpen(false);
+              }}
+            >
+              <Play className="h-3.5 w-3.5" />
+              开始专注
+            </button>
+            <button
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCheck();
+                setMenuOpen(false);
+              }}
+            >
+              <CheckCircle className="h-3.5 w-3.5" />
+              {isCompleted ? '恢复' : '完成'}
+            </button>
+            <button
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEditClick(e);
+                setMenuOpen(false);
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              编辑
+            </button>
+            <button
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(e);
+                setMenuOpen(false);
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              删除
+            </button>
+          </div>
+        )}
       </div>
       <ConfirmDialog
         open={showDeleteConfirm}

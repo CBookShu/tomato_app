@@ -76,13 +76,15 @@ async function createTaskAndStartTimer(page: Page) {
   const newTaskItem = page.getByTestId('task-item').filter({ hasText: '新任务' }).first();
   await expect(newTaskItem).toBeVisible();
 
-  // 在任务列表中点击任务的播放按钮开始计时
+  // 在任务列表中点击任务开始计时
   // 悬停以显示操作按钮
   await newTaskItem.hover();
-  // 点击播放按钮（Play 图标）开始计时
-  const playButton = newTaskItem.getByRole('button').filter({ has: page.locator('svg.lucide-play') });
-  await playButton.click();
-  
+  // 点击 MoreHorizontal 按钮打开下拉菜单（任务项最后一个按钮）
+  const moreButton = newTaskItem.locator('button').last();
+  await moreButton.click();
+  // 点击菜单中的"开始专注"选项
+  await page.getByText('开始专注').click();
+
   // 等待计时器启动
   await page.waitForTimeout(500);
 }

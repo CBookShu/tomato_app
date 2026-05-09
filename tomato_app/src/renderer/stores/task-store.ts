@@ -13,6 +13,7 @@ interface TaskStoreState {
   addTask: (task: Task) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   removeTask: (id: string) => void;
+  reorderTaskInGroup: (groupId: string, oldIndex: number, newIndex: number) => void;
   addGroup: (group: TaskGroup) => void;
   updateGroup: (id: string, updates: Partial<TaskGroup>) => void;
   removeGroup: (id: string) => void;
@@ -40,6 +41,21 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       tasks: s.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     })),
   removeTask: (id) => set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) })),
+  reorderTaskInGroup: (groupId, oldIndex, newIndex) =>
+    set((s) => {
+      const groupTasks = s.tasks.filter((t) => t.groupId === groupId);
+      const otherTasks = s.tasks.filter((t) => t.groupId !== groupId);
+
+      if (oldIndex < 0 || oldIndex >= groupTasks.length || newIndex < 0 || newIndex >= groupTasks.length) {
+        return s;
+      }
+
+      // Reorder the group tasks array
+      const [movedTask] = groupTasks.splice(oldIndex, 1);
+      groupTasks.splice(newIndex, 0, movedTask);
+
+      return { tasks: [...otherTasks, ...groupTasks] };
+    }),
 
   addGroup: (group) => set((s) => ({ groups: [...s.groups, group] })),
   updateGroup: (id, updates) =>

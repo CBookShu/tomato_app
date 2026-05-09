@@ -15,6 +15,27 @@ let groupRepo: TaskGroupRepository | null = null;
 let statsRepo: StatsRepository | null = null;
 let settingsRepo: SettingsRepository | null = null;
 
+/**
+ * 数据库迁移：检查并添加缺失的列
+ * 用于已有数据库的升级，确保旧用户数据库包含所有新列
+ */
+function runMigrations(): void {
+  if (!sqlite) return;
+
+  // 迁移 1: 添加 notes 列（如果不存在）
+  // 修复: SqliteError: no such column: "notes"
+  try {
+    const tableInfo = sqlite.prepare('PRAGMA table_info(tasks)').all() as { name: string }[];
+    const columnNames = tableInfo.map((col) => col.name);
+
+    if (!columnNames.includes('notes')) {
+      sqlite.exec(`ALTER TABLE tasks ADD COLUMN notes TEXT DEFAULT ''`);
+    }
+  } catch (e: unknown) {
+    console.error('[Migration] Failed to add notes column:', e);
+  }
+}
+
 export function initDatabase() {
   const dbPath = path.join(app.getPath('userData'), 'tomato.db');
   sqlite = new Database(dbPath);
@@ -56,12 +77,15 @@ export function initDatabase() {
     );
   `);
 
+  // 数据库迁移：添加可能缺失的列（用于已有数据库的升级）
+  runMigrations();
+
   db = drizzle(sqlite);
 
   taskRepo = new TaskRepository(db);
   groupRepo = new TaskGroupRepository(db);
-  taskManager = new TaskManager(taskRepo, groupRepo);
   statsRepo = new StatsRepository(db);
+  taskManager = new TaskManager(taskRepo, groupRepo, statsRepo);
   settingsRepo = new SettingsRepository(db);
 
   return { taskManager, statsRepo, settingsRepo };

@@ -39,6 +39,7 @@ export const IPC = {
   TASK_GET_BY_STATUS: 'task:getByStatus',
   TASK_EDIT: 'task:edit',
   TASK_COMPLETE: 'task:complete',
+  TASK_COMPLETE_EVENT: 'task:completeEvent',
   TASK_DELETE: 'task:delete',
   TASK_MOVE_TO_GROUP: 'task:moveToGroup',
   TASK_REORDER: 'task:reorder',
@@ -115,8 +116,9 @@ export interface IpcChannelMap {
 
   // Events from main -> renderer (no request)
   [IPC.TIMER_TICK]: { request: void; response: (remainingTime: number) => void };
-  [IPC.TIMER_STATUS_CHANGE]: { request: void; response: (status: string) => void };
+  [IPC.TIMER_STATUS_CHANGE]: { request: void; response: (status: string, remainingTime: number, taskId?: string) => void };
   [IPC.TIMER_COMPLETE]: { request: void; response: (type: 'work' | 'break') => void };
+  [IPC.TASK_COMPLETE_EVENT]: { request: void; response: (taskId: string) => void };
   [IPC.PLAY_SOUND]: { request: void; response: (soundType: string) => void };
 
   // Tray actions
@@ -129,6 +131,7 @@ export type IpcEventChannel =
   | typeof IPC.TIMER_TICK
   | typeof IPC.TIMER_STATUS_CHANGE
   | typeof IPC.TIMER_COMPLETE
+  | typeof IPC.TASK_COMPLETE_EVENT
   | typeof IPC.PLAY_SOUND;
 
 declare global {

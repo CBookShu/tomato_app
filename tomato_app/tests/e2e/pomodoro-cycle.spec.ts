@@ -31,9 +31,11 @@ test.describe('完整番茄工作循环', () => {
     // === 步骤2: 开始番茄计时 ===
     // 悬停以显示操作按钮
     await newTaskItem.hover();
-    // 点击播放按钮开始计时
-    const playButton = newTaskItem.getByRole('button').filter({ has: page.locator('svg.lucide-play') });
-    await playButton.click();
+    // 点击 MoreHorizontal 按钮打开下拉菜单（任务项最后一个按钮）
+    const moreButton = newTaskItem.locator('button').last();
+    await moreButton.click();
+    // 点击菜单中的"开始专注"选项
+    await page.getByText('开始专注').click();
 
     // 切换到计时视图验证计时器状态
     await page.getByRole('tab', { name: '计时' }).click();

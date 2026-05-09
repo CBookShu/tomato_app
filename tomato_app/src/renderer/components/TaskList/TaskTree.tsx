@@ -36,7 +36,7 @@ export function TaskTree() {
   };
 
   return (
-    <div className="w-60 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+    <div className="h-full bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col">
       <div className="p-3 border-b border-gray-200 dark:border-gray-700">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">任务列表</h2>
       </div>

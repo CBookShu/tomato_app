@@ -1,17 +1,22 @@
 import { useTaskStore } from '@/stores/task-store.js';
-import { useTimer } from '@/hooks/useTimer.js';
+import { useTimerStart } from '@/hooks/useTimerStart.js';
 import { Button } from '@/components/ui/button.js';
-import { Play, CheckCircle, Save } from 'lucide-react';
-import { useMemo, useState, useEffect } from 'react';
+import { Play, CheckCircle } from 'lucide-react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useIpc } from '@/hooks/useIpc.js';
 import { IPC } from '@shared/ipc-channels.js';
 import MDEditor from '@uiw/react-md-editor';
+import { useDebounce } from '@/hooks/useDebounce.js';
+import { useTimerStore } from '@/stores/timer-store.js';
+
+const AUTO_SAVE_DELAY_MS = 500;
 
 export function TaskDetail() {
   const tasks = useTaskStore((s) => s.tasks);
   const selectedTaskId = useTaskStore((s) => s.selectedTaskId);
   const updateTask = useTaskStore((s) => s.updateTask);
-  const { start, status } = useTimer();
+  const { start } = useTimerStart();
+  const status = useTimerStore((s) => s.status);
   const { invoke } = useIpc();
 
   // Use useMemo to find the selected task
@@ -23,18 +28,25 @@ export function TaskDetail() {
   // Local state for notes editing
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [lastSavedNotes, setLastSavedNotes] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Debounced notes for auto-save
+  const debouncedNotes = useDebounce(notes, AUTO_SAVE_DELAY_MS);
 
   // Sync notes with selected task
   useEffect(() => {
     if (task) {
       setNotes(task.notes || '');
+      setLastSavedNotes(task.notes || '');
     }
   }, [task?.id, task?.notes]);
 
-  const handleSaveNotes = async () => {
+  const handleSaveNotes = useCallback(async () => {
     if (!task) return;
 
     setIsSaving(true);
+    setSaveError(null);
     try {
       // Optimistic UI update
       updateTask(task.id, { notes });
@@ -44,12 +56,26 @@ export function TaskDetail() {
         id: task.id,
         updates: { notes },
       });
+
+      setLastSavedNotes(notes);
     } catch (error) {
       console.error('Failed to save notes:', error);
+      setSaveError('保存失败');
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [task, notes, updateTask, invoke]);
+
+  // Auto-save when debounced notes change
+  useEffect(() => {
+    if (
+      debouncedNotes !== lastSavedNotes &&
+      task &&
+      lastSavedNotes !== null
+    ) {
+      handleSaveNotes();
+    }
+  }, [debouncedNotes, lastSavedNotes, task, handleSaveNotes]);
 
   if (!task) {
     return (
@@ -66,16 +92,34 @@ export function TaskDetail() {
     start(task.id);
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
+    const newStatus = task.status === 'completed' ? 'todo' : 'completed';
+    const completedAt = task.status !== 'completed' ? new Date().toISOString() : undefined;
+
+    // Optimistic UI update
     updateTask(task.id, {
-      status: task.status === 'completed' ? 'todo' : 'completed',
-      completedAt: task.status !== 'completed' ? new Date().toISOString() : undefined,
+      status: newStatus,
+      completedAt,
     });
+
+    // Persist to database
+    try {
+      if (newStatus === 'completed') {
+        await invoke(IPC.TASK_COMPLETE, { id: task.id });
+      } else {
+        await invoke(IPC.TASK_EDIT, {
+          id: task.id,
+          updates: { status: newStatus, completedAt: undefined },
+        });
+      }
+    } catch (error) {
+      console.error('Failed to update task status:', error);
+    }
   };
 
   return (
-    <div className="flex-1 p-6 overflow-y-auto">
-      <div className="max-w-2xl">
+    <div className="flex-1 flex flex-col min-h-0 p-6 overflow-y-auto">
+      <div className="flex-1 flex flex-col min-h-0 max-w-2xl">
         <div className="flex items-start justify-between mb-4">
           <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
             {task.title}
@@ -105,27 +149,13 @@ export function TaskDetail() {
           <span>📅 创建于 {new Date(task.createdAt).toLocaleDateString()}</span>
         </div>
 
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              📝 笔记
-            </h2>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleSaveNotes}
-              disabled={isSaving}
-            >
-              <Save className="h-3 w-3 mr-1" />
-              {isSaving ? '保存中...' : '保存'}
-            </Button>
-          </div>
-          <div data-color-mode="auto">
+        <div className="flex-1 flex flex-col min-h-0 border-t border-gray-200 dark:border-gray-700 pt-4">
+          <div className="flex-1 min-h-0" data-color-mode="auto">
             <MDEditor
               value={notes}
               onChange={(val) => setNotes(val || '')}
               preview="live"
-              height={300}
+              height="100%"
               textareaProps={{
                 placeholder: '添加笔记...',
               }}

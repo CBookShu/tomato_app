@@ -1,11 +1,6 @@
 import { Tray, Menu, nativeImage, BrowserWindow, app } from 'electron';
 import { IPC } from '../shared/ipc-channels.js';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import fs from 'node:fs';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { safeSend } from './safe-send.js';
 
 let tray: Tray | null = null;
 let mainWindow: BrowserWindow | null = null;
@@ -13,46 +8,34 @@ let currentTaskTitle: string | undefined = undefined;
 
 export type TimerStatus = 'idle' | 'working' | 'paused' | 'breaking' | 'long-break';
 
-/**
- * 加载预制 Template Image 图标
- * macOS Template Image 规范：
- * - 黑色轮廓 + alpha 通道
- * - 文件名以 Template 结尾
- * - 系统自动适配深浅主题
- * - Electron 自动加载 @2x 版本用于 Retina 屏幕
- */
-function loadTrayIcon(status: TimerStatus): Electron.NativeImage {
-  const iconName = status === 'breaking' || status === 'long-break' ? 'breaking' :
-                   status === 'working' ? 'working' :
-                   status === 'paused' ? 'paused' : 'idle';
-
-  const iconsDir = path.join(__dirname, '..', '..', 'resources', 'icons');
-  // 只传递基本文件名，Electron 会自动查找 @2x 版本
-  const iconPath = path.join(iconsDir, `${iconName}Template.png`);
-
-  // 检查图标文件是否存在
-  if (fs.existsSync(iconPath)) {
-    const image = nativeImage.createFromPath(iconPath);
-    // 设置为模板图标，macOS 会自动根据主题调整颜色
-    image.setTemplateImage(true);
-    return image;
-  }
-
-  // Fallback: 创建简单的黑色模板图标
-  return createFallbackTemplateIcon();
-}
+// 缓存已生成的图标，避免每秒重建
+const iconCache = new Map<string, Electron.NativeImage>();
 
 /**
- * Fallback: 创建简单的黑色圆形模板图标
+ * 程序化绘制带颜色的托盘图标
+ * 不依赖文件系统，直接用 RGBA 像素绘制
  */
-function createFallbackTemplateIcon(): Electron.NativeImage {
-  const size = 16;
-  const canvas = Buffer.alloc(size * size * 4);
+function drawTrayIcon(status: TimerStatus): Electron.NativeImage {
+  const cacheKey = status;
+  const cached = iconCache.get(cacheKey);
+  if (cached) return cached;
 
-  // 绘制黑色圆形（Template Image 标准）
+  const size = 22; // macOS 菜单栏推荐 22x22（含 @2x 为 44x44）
   const centerX = size / 2;
   const centerY = size / 2;
-  const radius = 6;
+  const radius = 9;
+
+  // 颜色映射 (RGBA)
+  const colors: Record<string, { r: number; g: number; b: number }> = {
+    idle: { r: 128, g: 128, b: 128 },      // 灰色
+    working: { r: 239, g: 68, b: 68 },      // 红色 (番茄)
+    paused: { r: 251, g: 191, b: 36 },      // 黄色 (暂停)
+    breaking: { r: 34, g: 197, b: 94 },     // 绿色 (休息)
+    'long-break': { r: 34, g: 197, b: 94 }, // 绿色 (长休息)
+  };
+
+  const color = colors[status] || colors.idle;
+  const canvas = Buffer.alloc(size * size * 4);
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -62,25 +45,25 @@ function createFallbackTemplateIcon(): Electron.NativeImage {
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       if (distance <= radius - 0.5) {
-        // 完全在圆内 - 黑色不透明
-        canvas[idx] = 0;
-        canvas[idx + 1] = 0;
-        canvas[idx + 2] = 0;
+        // 完全在圆内 - 填充颜色
+        canvas[idx] = color.r;
+        canvas[idx + 1] = color.g;
+        canvas[idx + 2] = color.b;
         canvas[idx + 3] = 255;
       } else if (distance <= radius + 0.5) {
         // 边缘 - 抗锯齿
         const alpha = Math.round(255 * (1 - (distance - radius + 0.5)));
-        canvas[idx] = 0;
-        canvas[idx + 1] = 0;
-        canvas[idx + 2] = 0;
+        canvas[idx] = color.r;
+        canvas[idx + 1] = color.g;
+        canvas[idx + 2] = color.b;
         canvas[idx + 3] = alpha;
       }
-      // 圆外保持透明（alpha = 0）
+      // 圆外保持透明
     }
   }
 
   const image = nativeImage.createFromBuffer(canvas, { width: size, height: size });
-  image.setTemplateImage(true);
+  iconCache.set(cacheKey, image);
   return image;
 }
 
@@ -92,7 +75,7 @@ function formatTime(seconds: number): string {
 
 export function createTray(getWindow: () => BrowserWindow | null): Tray {
   mainWindow = getWindow();
-  const icon = loadTrayIcon('idle');
+  const icon = drawTrayIcon('idle');
   tray = new Tray(icon);
   tray.setToolTip('Tomato - 就绪');
 
@@ -152,20 +135,20 @@ function updateTrayMenu(status: TimerStatus, remainingTime: number) {
   if (status === 'working') {
     menuItems.push({
       label: '⏸ 暂停',
-      click: () => mainWindow?.webContents.send(IPC.TRAY_PAUSE),
+      click: () => safeSend(mainWindow, IPC.TRAY_PAUSE),
     });
     menuItems.push({
       label: '⏹ 停止',
-      click: () => mainWindow?.webContents.send(IPC.TRAY_STOP),
+      click: () => safeSend(mainWindow, IPC.TRAY_STOP),
     });
   } else if (status === 'breaking' || status === 'long-break') {
     menuItems.push({
       label: '⏭ 跳过休息',
-      click: () => mainWindow?.webContents.send(IPC.TRAY_SKIP_BREAK),
+      click: () => safeSend(mainWindow, IPC.TRAY_SKIP_BREAK),
     });
     menuItems.push({
       label: '⏹ 停止',
-      click: () => mainWindow?.webContents.send(IPC.TRAY_STOP),
+      click: () => safeSend(mainWindow, IPC.TRAY_STOP),
     });
   }
 
@@ -190,7 +173,7 @@ function updateTrayMenu(status: TimerStatus, remainingTime: number) {
 export function updateTrayIcon(status: TimerStatus, remainingTime?: number) {
   if (!tray) return;
 
-  const icon = loadTrayIcon(status);
+  const icon = drawTrayIcon(status);
   tray.setImage(icon);
 
   const statusLabels: Record<string, string> = {
@@ -203,6 +186,16 @@ export function updateTrayIcon(status: TimerStatus, remainingTime?: number) {
 
   const timeStr = remainingTime && remainingTime > 0 ? formatTime(remainingTime) : '';
   const timeDisplay = timeStr ? ` ${timeStr}` : '';
+
+  // macOS: 在托盘图标旁边显示倒计时
+  if (process.platform === 'darwin') {
+    if (timeStr && status !== 'idle') {
+      tray.setTitle(timeStr);
+    } else {
+      tray.setTitle('');
+    }
+  }
+
   tray.setToolTip(`Tomato - ${statusLabels[status] || '就绪'}${timeDisplay}`);
 
   updateTrayMenu(status, remainingTime ?? 0);

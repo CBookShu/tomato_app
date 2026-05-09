@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { AppShell } from '@/components/Layout/AppShell.js';
 import type { TabId } from '@/components/Layout/Sidebar.js';
 import { TimerDisplay } from '@/components/Timer/TimerDisplay.js';
@@ -10,14 +10,22 @@ import { WeeklyTrend } from '@/components/Stats/WeeklyTrend.js';
 import { SettingsPage } from '@/components/Settings/SettingsPage.js';
 import { useIpc } from '@/hooks/useIpc.js';
 import { useSound } from '@/hooks/useSound.js';
+import { useTimerEvents } from '@/hooks/useTimerEvents.js';
 import { IPC } from '@shared/ipc-channels.js';
 import { useTaskStore } from '@/stores/task-store.js';
 import { useStatsStore } from '@/stores/stats-store.js';
 import { useSettingsStore } from '@/stores/settings-store.js';
 import { getToday } from '@pomodoro/core/dist/utils/date-utils.js';
 
+const MIN_PANEL_WIDTH = 200;
+const MAX_PANEL_WIDTH = 500;
+const DEFAULT_PANEL_WIDTH = 280;
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('timer');
+  const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeRef = useRef<HTMLDivElement>(null);
 
   const { invoke } = useIpc();
   const taskStore = useTaskStore();
@@ -25,6 +33,7 @@ export default function App() {
   const settingsStore = useSettingsStore();
 
   useSound();
+  useTimerEvents();
 
   useEffect(() => {
     async function loadData() {
@@ -57,6 +66,32 @@ export default function App() {
     loadData();
   }, []);
 
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, e.clientX - 48));
+      setPanelWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
   const renderContent = () => {
     switch (activeTab) {
       case 'timer':
@@ -69,7 +104,16 @@ export default function App() {
       case 'tasks':
         return (
           <>
-            <TaskTree />
+            <div style={{ width: panelWidth }} className="flex flex-col">
+              <TaskTree />
+            </div>
+            <div
+              ref={resizeRef}
+              className={`w-1 cursor-col-resize hover:bg-blue-400 transition-colors ${
+                isResizing ? 'bg-blue-500' : 'bg-gray-200 dark:bg-gray-700'
+              }`}
+              onMouseDown={handleMouseDown}
+            />
             <TaskDetail />
           </>
         );

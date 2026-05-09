@@ -1,4 +1,4 @@
-import { Notification, BrowserWindow } from 'electron';
+import { Notification, BrowserWindow, session } from 'electron';
 import { IPC } from '../shared/ipc-channels.js';
 import { safeSend } from './safe-send.js';
 
@@ -18,11 +18,14 @@ export function sendNotification(
   body: string,
   actions?: NotificationAction[]
 ) {
+  console.log('[Notification] Attempting to send:', title);
+
   if (!Notification.isSupported()) {
-    console.warn('[Notification] Not supported');
+    console.warn('[Notification] Not supported on this system');
     return;
   }
 
+  console.log('[Notification] Creating notification...');
   const notification = new Notification({
     title,
     body,
@@ -34,12 +37,21 @@ export function sendNotification(
   });
 
   notification.on('action', (_event, index) => {
+    console.log('[Notification] Action clicked:', index);
     actions?.[index]?.action();
   });
 
-  notification.on('click', () => notification.close());
+  notification.on('click', () => {
+    console.log('[Notification] Clicked');
+    notification.close();
+  });
+
+  notification.on('show', () => {
+    console.log('[Notification] Shown successfully');
+  });
 
   notification.show();
+  console.log('[Notification] show() called');
 }
 
 export function notifyPomodoroComplete() {
