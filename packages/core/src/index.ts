@@ -21,14 +21,6 @@ export { computeDailyStats, computeWeeklyTrend, computeMonthlyStats } from './st
 export { generateId } from './utils/id-generator.js';
 export { getToday, getWeekRange, getMonthKey } from './utils/date-utils.js';
 
-// Database
-export { getDb, closeDb } from './db/connection.js';
-export { TaskRepository } from './db/task-repository.js';
-export { TaskGroupRepository } from './db/task-group-repository.js';
-export { StatsRepository } from './db/stats-repository.js';
-export { SettingsRepository } from './db/settings-repository.js';
-export * from './db/schema.js';
-
 // Storage
 export {
   FileStorage,
