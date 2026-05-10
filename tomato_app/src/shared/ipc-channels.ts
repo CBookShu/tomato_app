@@ -1,4 +1,4 @@
-import type { Task, TaskGroup, NewTask, NewTaskGroup, TaskStatus } from '@pomodoro/core';
+import type { Task, TaskGroup, NewTask, NewTaskGroup, TaskStatus, SyncResult } from '@pomodoro/core';
 import type { DailyStats, MonthlyStats, TimerState } from '@pomodoro/core';
 
 // Data export/import types
@@ -69,6 +69,15 @@ export const IPC = {
 
   // Sound
   PLAY_SOUND: 'play-sound',
+
+  // Sync
+  SYNC_LOGIN: 'sync:login',
+  SYNC_LOGOUT: 'sync:logout',
+  SYNC_GET_STATUS: 'sync:get-status',
+  SYNC_SYNC: 'sync:sync',
+  SYNC_RESOLVE_CONFLICT: 'sync:resolve-conflict',
+  SYNC_ROLLBACK: 'sync:rollback',
+  SYNC_GET_DATA_DIR: 'sync:get-data-dir',
 } as const;
 
 // Request/Response type pairs for each channel
@@ -125,6 +134,15 @@ export interface IpcChannelMap {
   [IPC.TRAY_PAUSE]: { request: void; response: void };
   [IPC.TRAY_STOP]: { request: void; response: void };
   [IPC.TRAY_SKIP_BREAK]: { request: void; response: void };
+
+  // Sync
+  [IPC.SYNC_LOGIN]: { request: void; response: boolean };
+  [IPC.SYNC_LOGOUT]: { request: void; response: void };
+  [IPC.SYNC_GET_STATUS]: { request: void; response: { isLoggedIn: boolean; syncStatus?: string } };
+  [IPC.SYNC_SYNC]: { request: void; response: SyncResult };
+  [IPC.SYNC_RESOLVE_CONFLICT]: { request: void; response: SyncResult };
+  [IPC.SYNC_ROLLBACK]: { request: void; response: void };
+  [IPC.SYNC_GET_DATA_DIR]: { request: void; response: string };
 }
 
 export type IpcEventChannel =

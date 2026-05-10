@@ -7,6 +7,7 @@ import { updateTrayIcon, updateTrayTime, setTrayTaskTitle } from './tray.js';
 import type { TimerStatus } from './tray.js';
 import { clearAllData, getStorage } from './database.js';
 import { safeSend } from './safe-send.js';
+import { SyncService } from './sync/sync-service.js';
 
 // ExportData 类型定义（与 shared/ipc-channels.ts 保持一致）
 interface ExportDataPayload {
@@ -33,6 +34,9 @@ let onPomodoroComplete: (() => void) | null = null;
 let onBreakComplete: (() => void) | null = null;
 let currentTimerStatus: TimerStatus = 'idle';
 let currentRemainingTime: number = 0;
+
+// Sync service instance
+const syncService = new SyncService();
 
 async function getTimerConfig(): Promise<Partial<PomodoroConfig>> {
   // 测试环境优先使用环境变量
@@ -349,4 +353,35 @@ export function registerIpcHandlers(
       },
     );
   }
+
+  // Sync handlers
+  ipcMain.handle(IPC.SYNC_LOGIN, async () => {
+    return syncService.login();
+  });
+
+  ipcMain.handle(IPC.SYNC_LOGOUT, async () => {
+    return syncService.logout();
+  });
+
+  ipcMain.handle(IPC.SYNC_GET_STATUS, async () => {
+    return syncService.getStatus();
+  });
+
+  ipcMain.handle(IPC.SYNC_SYNC, async () => {
+    const dataDir = await syncService.getDataDir();
+    await syncService.initGit(dataDir);
+    return syncService.sync();
+  });
+
+  ipcMain.handle(IPC.SYNC_RESOLVE_CONFLICT, async () => {
+    return syncService.resolveConflict();
+  });
+
+  ipcMain.handle(IPC.SYNC_ROLLBACK, async () => {
+    return syncService.rollback();
+  });
+
+  ipcMain.handle(IPC.SYNC_GET_DATA_DIR, async () => {
+    return syncService.getDataDir();
+  });
 }
