@@ -41,3 +41,7 @@ export {
   stringifyYaml,
   parseYaml,
 } from './storage/index.js';
+
+// Sync
+export { GitClient, SyncManager } from './sync/index.js';
+export type { SyncStatus, SyncState, SyncResult, ConflictInfo } from './sync/index.js';
