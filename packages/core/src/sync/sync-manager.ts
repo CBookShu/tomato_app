@@ -1,0 +1,131 @@
+// packages/core/src/sync/sync-manager.ts
+import { GitClient } from './git-client.js';
+import { FileStorage } from '../storage/file-storage.js';
+import { SyncResult, SyncStatus } from './types.js';
+
+export class SyncManager {
+  constructor(
+    private git: GitClient,
+    private storage: FileStorage
+  ) {}
+
+  async commitChanges(message?: string): Promise<void> {
+    if (!(await this.git.hasChanges())) {
+      return;
+    }
+
+    await this.git.add('.');
+    await this.git.commit(message || `sync: ${new Date().toISOString()}`);
+  }
+
+  async pullChanges(): Promise<SyncResult> {
+    try {
+      const result = await this.git.pull(true);
+
+      if (result.hasConflicts) {
+        // Abort rebase and create backup branch
+        await this.git.rebaseAbort();
+        const conflictBranch = await this.createBackupBranch();
+
+        return {
+          success: false,
+          status: 'conflict',
+          conflictBranch,
+        };
+      }
+
+      return {
+        success: true,
+        status: 'synced',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        status: 'error',
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  async createBackupBranch(): Promise<string> {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const branchName = `local-backup-${timestamp}`;
+    await this.git.createBranch(branchName);
+    return branchName;
+  }
+
+  async resetToRemote(): Promise<void> {
+    await this.git.fetch('origin');
+    await this.git.resetHard('origin/main');
+  }
+
+  async pushChanges(): Promise<SyncResult> {
+    try {
+      await this.git.push('origin');
+      return {
+        success: true,
+        status: 'synced',
+      };
+    } catch (error) {
+      const message = (error as Error).message;
+
+      if (message.includes('non-fast-forward') || message.includes('behind')) {
+        // Remote has new commits, need to pull first
+        return {
+          success: false,
+          status: 'error',
+          error: 'Remote has new commits. Pull first.',
+        };
+      }
+
+      return {
+        success: false,
+        status: 'error',
+        error: message,
+      };
+    }
+  }
+
+  async sync(): Promise<SyncResult> {
+    // Commit any local changes
+    await this.commitChanges('sync: local changes before pull');
+
+    // Pull from remote
+    const pullResult = await this.pullChanges();
+    if (!pullResult.success) {
+      return pullResult;
+    }
+
+    // Push any remaining changes
+    if (await this.git.hasChanges()) {
+      await this.commitChanges();
+      return this.pushChanges();
+    }
+
+    return pullResult;
+  }
+
+  async resolveConflictAndSync(): Promise<SyncResult> {
+    // Check if working tree is clean
+    const status = await this.git.status();
+    if (!status.isClean()) {
+      return {
+        success: false,
+        status: 'error',
+        error: 'Working tree has uncommitted changes',
+      };
+    }
+
+    // Try to push
+    return this.pushChanges();
+  }
+
+  async getStatus(): Promise<{ isClean: boolean; ahead: number; behind: number }> {
+    const status = await this.git.status();
+    return {
+      isClean: status.isClean(),
+      ahead: status.ahead,
+      behind: status.behind,
+    };
+  }
+}

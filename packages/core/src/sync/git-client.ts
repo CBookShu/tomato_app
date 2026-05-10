@@ -116,16 +116,21 @@ export class GitClient {
   }
 
   async log(maxCount: number = 10): Promise<{ latest?: { message: string; hash: string } }> {
-    const result = await this.git.log({ maxCount });
-    if (result.latest) {
-      return {
-        latest: {
-          message: result.latest.message,
-          hash: result.latest.hash,
-        },
-      };
+    try {
+      const result = await this.git.log({ maxCount });
+      if (result.latest) {
+        return {
+          latest: {
+            message: result.latest.message,
+            hash: result.latest.hash,
+          },
+        };
+      }
+      return {};
+    } catch {
+      // No commits yet or other error
+      return {};
     }
-    return {};
   }
 
   async addRemote(name: string, url: string): Promise<void> {
