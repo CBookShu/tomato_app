@@ -28,3 +28,24 @@ export { TaskGroupRepository } from './db/task-group-repository.js';
 export { StatsRepository } from './db/stats-repository.js';
 export { SettingsRepository } from './db/settings-repository.js';
 export * from './db/schema.js';
+
+// Storage
+export {
+  FileStorage,
+  TaskFileRepository,
+  GroupFileRepository,
+  StatsFileRepository,
+  type IStatsRepository,
+  ConfigFileRepository,
+  type AppConfig,
+  NotesStorage,
+  getStoragePaths,
+  getTaskPath,
+  getGroupPath,
+  getStatsPath,
+  getConfigPath,
+  getNotesPath,
+  type StoragePaths,
+  stringifyYaml,
+  parseYaml,
+} from './storage/index.js';
