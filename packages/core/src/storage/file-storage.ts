@@ -64,4 +64,19 @@ export class FileStorage {
       throw error;
     }
   }
+
+  async clearAll(): Promise<void> {
+    // Delete all subdirectories and their contents
+    const subdirs = ['tasks', 'groups', 'stats', 'meta', 'tasks-notes'];
+    for (const subdir of subdirs) {
+      const fullPath = path.join(this.baseDir, subdir);
+      try {
+        await fs.rm(fullPath, { recursive: true, force: true });
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw error;
+        }
+      }
+    }
+  }
 }

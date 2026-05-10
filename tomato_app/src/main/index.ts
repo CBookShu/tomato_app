@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, session } from 'electron';
 import { createWindow } from './window.js';
 import { registerIpcHandlers } from './ipc-handlers.js';
-import { initDatabase } from './database.js';
+import { initStorage } from './database.js';
 import { createTray, setTrayTaskTitle } from './tray.js';
 import { notifyPomodoroComplete, notifyBreakComplete, setNotificationWindow } from './notifications.js';
 import { registerShortcuts, unregisterShortcuts } from './shortcuts.js';
@@ -27,12 +27,12 @@ function setupNotificationPermissions() {
 
 app.whenReady().then(async () => {
   setupNotificationPermissions();
-  const { taskManager, statsRepo, settingsRepo } = initDatabase();
+  const { taskManager, statsRepo, configRepo } = await initStorage();
   await taskManager.initialize();
 
   mainWindow = createWindow();
   setNotificationWindow(mainWindow);
-  registerIpcHandlers(() => mainWindow, taskManager, statsRepo, settingsRepo, {
+  registerIpcHandlers(() => mainWindow, taskManager, statsRepo, configRepo, {
     onPomodoroComplete: notifyPomodoroComplete,
     onBreakComplete: notifyBreakComplete,
   });
@@ -54,7 +54,7 @@ app.whenReady().then(async () => {
     const { clearDatabase } = await import('./database.js');
 
     ipcMain.handle('test:clear-database', async () => {
-      clearDatabase();
+      await clearDatabase();
       return { success: true };
     });
 

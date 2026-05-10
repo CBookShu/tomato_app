@@ -12,8 +12,10 @@ interface StatsYaml {
 
 export interface IStatsRepository {
   findByDate(date: string): Promise<DailyStats | null>;
+  findByDateRange(startDate: string, endDate: string): Promise<DailyStats[]>;
   findAll(): Promise<DailyStats[]>;
   upsert(date: string, increment: { totalPomodoros?: number; completedTasks?: number; tasks?: string[] }): Promise<DailyStats>;
+  save(stats: DailyStats): Promise<DailyStats>;
 }
 
 export class StatsFileRepository implements IStatsRepository {
@@ -30,6 +32,11 @@ export class StatsFileRepository implements IStatsRepository {
       completedTasks: yaml.completedTasks,
       tasks: yaml.tasks,
     };
+  }
+
+  async findByDateRange(startDate: string, endDate: string): Promise<DailyStats[]> {
+    const allStats = await this.findAll();
+    return allStats.filter(stat => stat.date >= startDate && stat.date <= endDate);
   }
 
   async findAll(): Promise<DailyStats[]> {
@@ -69,6 +76,19 @@ export class StatsFileRepository implements IStatsRepository {
 
     const content = stringifyYaml(yaml);
     await this.storage.writeFile(getStatsPath('', date).replace(/^\//, ''), content);
+
+    return stats;
+  }
+
+  async save(stats: DailyStats): Promise<DailyStats> {
+    const yaml: StatsYaml = {
+      totalPomodoros: stats.totalPomodoros,
+      completedTasks: stats.completedTasks,
+      tasks: stats.tasks as string[],
+    };
+
+    const content = stringifyYaml(yaml);
+    await this.storage.writeFile(getStatsPath('', stats.date).replace(/^\//, ''), content);
 
     return stats;
   }

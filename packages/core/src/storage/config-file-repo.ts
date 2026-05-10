@@ -7,16 +7,22 @@ export interface AppConfig {
   pomodoroDuration: number;
   shortBreakDuration: number;
   longBreakDuration: number;
+  longBreakInterval: number;
   soundEnabled: boolean;
   notificationEnabled: boolean;
+  autoStartBreak?: boolean;
+  autoStartPomodoro?: boolean;
 }
 
 const DEFAULT_CONFIG: AppConfig = {
   pomodoroDuration: 25,
   shortBreakDuration: 5,
   longBreakDuration: 15,
+  longBreakInterval: 4,
   soundEnabled: true,
   notificationEnabled: true,
+  autoStartBreak: false,
+  autoStartPomodoro: false,
 };
 
 export class ConfigFileRepository {
@@ -38,5 +44,10 @@ export class ConfigFileRepository {
     await this.storage.writeFile(getConfigPath('').replace(/^\//, ''), content);
 
     return config;
+  }
+
+  // Alias for compatibility
+  async update(updates: Partial<AppConfig>): Promise<AppConfig> {
+    return this.set(updates);
   }
 }

@@ -1,11 +1,11 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import { IPC } from '../shared/ipc-channels.js';
 import { PomodoroTimer, Task, TaskGroup, DailyStats } from '@pomodoro/core';
-import type { TaskManager, StatsRepository, SettingsRepository } from '@pomodoro/core';
+import type { TaskManager, IStatsRepository, ConfigFileRepository, AppConfig } from '@pomodoro/core';
 import type { PomodoroConfig } from '@pomodoro/core';
 import { updateTrayIcon, updateTrayTime, setTrayTaskTitle } from './tray.js';
 import type { TimerStatus } from './tray.js';
-import { clearAllData, getSqlite } from './database.js';
+import { clearAllData, getStorage } from './database.js';
 import { safeSend } from './safe-send.js';
 
 // ExportData 类型定义（与 shared/ipc-channels.ts 保持一致）
@@ -20,10 +20,14 @@ interface ExportDataPayload {
   };
 }
 
+// Timer setting keys
+const TIMER_SETTING_KEYS = ['pomodoroDuration', 'shortBreakDuration', 'longBreakDuration', 'longBreakInterval'] as const;
+const BOOLEAN_SETTING_KEYS = ['autoStartBreak', 'autoStartPomodoro', 'soundEnabled', 'notificationEnabled'] as const;
+
 let timer: PomodoroTimer | null = null;
 let taskManager: TaskManager | null = null;
-let statsRepo: StatsRepository | null = null;
-let settingsRepo: SettingsRepository | null = null;
+let statsRepo: IStatsRepository | null = null;
+let configRepo: ConfigFileRepository | null = null;
 let currentWindow: BrowserWindow | null = null;
 let onPomodoroComplete: (() => void) | null = null;
 let onBreakComplete: (() => void) | null = null;
@@ -42,20 +46,16 @@ async function getTimerConfig(): Promise<Partial<PomodoroConfig>> {
   }
 
   // 生产环境从设置读取
-  if (!settingsRepo) {
+  if (!configRepo) {
     return {};
   }
 
-  const pomodoroDuration = (await settingsRepo.get('pomodoro_duration')) ?? '25';
-  const shortBreak = (await settingsRepo.get('short_break')) ?? '5';
-  const longBreak = (await settingsRepo.get('long_break')) ?? '15';
-  const longBreakInterval = (await settingsRepo.get('long_break_interval')) ?? '4';
-
+  const config = await configRepo.get();
   return {
-    pomodoroDuration: parseInt(pomodoroDuration, 10) * 60,
-    shortBreakDuration: parseInt(shortBreak, 10) * 60,
-    longBreakDuration: parseInt(longBreak, 10) * 60,
-    longBreakInterval: parseInt(longBreakInterval, 10),
+    pomodoroDuration: (config.pomodoroDuration ?? 25) * 60,
+    shortBreakDuration: (config.shortBreakDuration ?? 5) * 60,
+    longBreakDuration: (config.longBreakDuration ?? 15) * 60,
+    longBreakInterval: config.longBreakInterval ?? 4,
   };
 }
 
@@ -110,8 +110,8 @@ async function updateTimerConfig(): Promise<void> {
 export function registerIpcHandlers(
   getWindow: () => BrowserWindow | null,
   _taskManager?: TaskManager,
-  _statsRepo?: StatsRepository,
-  _settingsRepo?: SettingsRepository,
+  _statsRepo?: IStatsRepository,
+  _configRepo?: ConfigFileRepository,
   callbacks?: {
     onPomodoroComplete?: () => void;
     onBreakComplete?: () => void;
@@ -119,7 +119,7 @@ export function registerIpcHandlers(
 ) {
   taskManager = _taskManager ?? null;
   statsRepo = _statsRepo ?? null;
-  settingsRepo = _settingsRepo ?? null;
+  configRepo = _configRepo ?? null;
   onPomodoroComplete = callbacks?.onPomodoroComplete ?? null;
   onBreakComplete = callbacks?.onBreakComplete ?? null;
 
@@ -198,29 +198,71 @@ export function registerIpcHandlers(
     });
   }
 
-  // Settings handlers
-  if (settingsRepo) {
-    ipcMain.handle(IPC.SETTINGS_GET, async (_e, payload) => settingsRepo!.get(payload.key, payload.defaultValue));
+  // Settings handlers (using ConfigFileRepository)
+  if (configRepo) {
+    ipcMain.handle(IPC.SETTINGS_GET, async (_e, payload) => {
+      const config = await configRepo!.get();
+      const key = payload.key as keyof AppConfig;
+      if (payload.defaultValue !== undefined) {
+        return (config[key] ?? payload.defaultValue) as string;
+      }
+      const value = config[key];
+      return value !== undefined ? String(value) : undefined;
+    });
     ipcMain.handle(IPC.SETTINGS_SET, async (_e, payload) => {
-      const result = await settingsRepo!.set(payload.key, payload.value);
+      const updates: Partial<AppConfig> = {};
+      const key = payload.key as string;
+      const value = payload.value as string;
+      // Type conversion based on key
+      if (TIMER_SETTING_KEYS.includes(key as typeof TIMER_SETTING_KEYS[number])) {
+        (updates as Record<string, number>)[key] = parseInt(value, 10);
+      } else if (BOOLEAN_SETTING_KEYS.includes(key as typeof BOOLEAN_SETTING_KEYS[number])) {
+        (updates as Record<string, boolean>)[key] = value === 'true';
+      } else {
+        (updates as Record<string, string>)[key] = value;
+      }
+      const result = await configRepo!.update(updates);
       // Update timer config when timer settings change
-      if (['pomodoro_duration', 'short_break', 'long_break', 'long_break_interval'].includes(payload.key)) {
+      if (TIMER_SETTING_KEYS.includes(key as typeof TIMER_SETTING_KEYS[number])) {
         await updateTimerConfig();
       }
       return result;
     });
-    ipcMain.handle(IPC.SETTINGS_GET_ALL, async () => settingsRepo!.getAll());
-    ipcMain.handle(IPC.SETTINGS_DELETE, async (_e, payload) => settingsRepo!.delete(payload.key));
+    ipcMain.handle(IPC.SETTINGS_GET_ALL, async () => {
+      const config = await configRepo!.get();
+      // Convert AppConfig to Record<string, string> for backwards compatibility
+      const result: Record<string, string> = {};
+      for (const [key, value] of Object.entries(config)) {
+        if (value !== undefined) {
+          result[key] = String(value);
+        }
+      }
+      return result;
+    });
+    ipcMain.handle(IPC.SETTINGS_DELETE, async (_e, payload) => {
+      // Reset a setting to default by setting it to undefined
+      const updates: Partial<AppConfig> = {};
+      const key = payload.key as string;
+      (updates as Record<string, undefined>)[key] = undefined;
+      return configRepo!.update(updates);
+    });
   }
 
   // Data export/import handlers
-  if (taskManager && statsRepo && settingsRepo) {
+  if (taskManager && statsRepo && configRepo) {
     ipcMain.handle(IPC.DATA_EXPORT, async () => {
       try {
         const tasks = await taskManager!.getAllTasks();
         const groups = await taskManager!.getAllGroups();
         const stats = await statsRepo!.findByDateRange('2000-01-01', '2099-12-31');
-        const settingsData = await settingsRepo!.getAll();
+        const config = await configRepo!.get();
+        // Convert AppConfig to Record<string, string> for backwards compatibility
+        const settingsData: Record<string, string> = {};
+        for (const [key, value] of Object.entries(config)) {
+          if (value !== undefined) {
+            settingsData[key] = String(value);
+          }
+        }
 
         const exportData: ExportDataPayload = {
           version: '1.0',
@@ -246,138 +288,57 @@ export function registerIpcHandlers(
             return { success: false, message: '无效数据格式：缺少任务或分组数据' };
           }
 
-          const sqlite = getSqlite();
+          const storage = getStorage();
 
-          // 使用事务确保原子性
-          const importTransaction = sqlite.transaction(() => {
-            if (payload.mode === 'replace') {
-              clearAllData();
-              // replace 模式：直接插入数据
-              const groupStmt = sqlite.prepare(
-                `INSERT INTO task_groups (id, name, color, task_order, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?)`,
-              );
-              for (const group of payload.data.groups) {
-                groupStmt.run(
-                  group.id,
-                  group.name,
-                  group.color ?? null,
-                  JSON.stringify(group.taskOrder ?? []),
-                  group.createdAt,
-                  group.updatedAt,
-                );
-              }
+          if (payload.mode === 'replace') {
+            // Clear all existing data first
+            await clearAllData();
+          }
 
-              const taskStmt = sqlite.prepare(
-                `INSERT INTO tasks (id, title, description, notes, completed_pomodoros, status, group_id, last_pomodoro_time, tags, created_at, updated_at, completed_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              );
-              for (const task of payload.data.tasks) {
-                taskStmt.run(
-                  task.id,
-                  task.title,
-                  task.description ?? null,
-                  task.notes ?? '',
-                  task.completedPomodoros ?? 0,
-                  task.status,
-                  task.groupId ?? null,
-                  task.lastPomodoroTime ?? null,
-                  JSON.stringify(task.tags ?? []),
-                  task.createdAt,
-                  task.updatedAt,
-                  task.completedAt ?? null,
-                );
-              }
+          // Import groups using repository
+          for (const group of payload.data.groups) {
+            const existingGroup = await storage.groupRepo.findById(group.id);
+            if (existingGroup && payload.mode === 'merge') {
+              // Update existing group in merge mode
+              await storage.groupRepo.update(group.id, group);
             } else {
-              // merge 模式：使用 UPSERT 避免主键冲突
-              const groupStmt = sqlite.prepare(
-                `INSERT INTO task_groups (id, name, color, task_order, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?)
-                   ON CONFLICT(id) DO UPDATE SET
-                     name = excluded.name,
-                     color = excluded.color,
-                     task_order = excluded.task_order,
-                     updated_at = excluded.updated_at`,
-              );
-              for (const group of payload.data.groups) {
-                groupStmt.run(
-                  group.id,
-                  group.name,
-                  group.color ?? null,
-                  JSON.stringify(group.taskOrder ?? []),
-                  group.createdAt,
-                  group.updatedAt,
-                );
-              }
+              // Create new group (or replace mode)
+              await storage.groupRepo.create(group);
+            }
+          }
 
-              const taskStmt = sqlite.prepare(
-                `INSERT INTO tasks (id, title, description, notes, completed_pomodoros, status, group_id, last_pomodoro_time, tags, created_at, updated_at, completed_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                   ON CONFLICT(id) DO UPDATE SET
-                     title = excluded.title,
-                     description = excluded.description,
-                     notes = excluded.notes,
-                     completed_pomodoros = excluded.completed_pomodoros,
-                     status = excluded.status,
-                     group_id = excluded.group_id,
-                     last_pomodoro_time = excluded.last_pomodoro_time,
-                     tags = excluded.tags,
-                     updated_at = excluded.updated_at,
-                     completed_at = excluded.completed_at`,
-              );
-              for (const task of payload.data.tasks) {
-                taskStmt.run(
-                  task.id,
-                  task.title,
-                  task.description ?? null,
-                  task.notes ?? '',
-                  task.completedPomodoros ?? 0,
-                  task.status,
-                  task.groupId ?? null,
-                  task.lastPomodoroTime ?? null,
-                  JSON.stringify(task.tags ?? []),
-                  task.createdAt,
-                  task.updatedAt,
-                  task.completedAt ?? null,
-                );
+          // Import tasks using repository
+          for (const task of payload.data.tasks) {
+            const existingTask = await storage.taskRepo.findById(task.id);
+            if (existingTask && payload.mode === 'merge') {
+              // Update existing task in merge mode
+              await storage.taskRepo.update(task.id, task);
+            } else {
+              // Create new task (or replace mode)
+              await storage.taskRepo.create(task);
+            }
+          }
+
+          // Import stats using repository
+          for (const stat of payload.data.stats) {
+            await storage.statsRepo.save(stat);
+          }
+
+          // Import settings using config repository
+          const configUpdates: Partial<AppConfig> = {};
+          for (const [key, value] of Object.entries(payload.data.settings)) {
+            if (typeof value === 'string') {
+              // Type conversion based on key
+              if (TIMER_SETTING_KEYS.includes(key as typeof TIMER_SETTING_KEYS[number])) {
+                (configUpdates as Record<string, number>)[key] = parseInt(value, 10);
+              } else if (BOOLEAN_SETTING_KEYS.includes(key as typeof BOOLEAN_SETTING_KEYS[number])) {
+                (configUpdates as Record<string, boolean>)[key] = value === 'true';
+              } else {
+                (configUpdates as Record<string, string>)[key] = value;
               }
             }
-
-            // 导入统计 - 使用 UPSERT（两种模式相同）
-            const statsStmt = sqlite.prepare(
-              `INSERT INTO daily_stats (date, total_pomodoros, completed_tasks, tasks)
-                  VALUES (?, ?, ?, ?)
-                  ON CONFLICT(date) DO UPDATE SET
-                    total_pomodoros = ?,
-                    completed_tasks = ?,
-                    tasks = ?`,
-            );
-            for (const stat of payload.data.stats) {
-              statsStmt.run(
-                stat.date,
-                stat.totalPomodoros,
-                stat.completedTasks,
-                JSON.stringify(stat.tasks),
-                stat.totalPomodoros,
-                stat.completedTasks,
-                JSON.stringify(stat.tasks),
-              );
-            }
-
-            // 导入设置 - 使用 UPSERT（两种模式相同）
-            const settingsStmt = sqlite.prepare(
-              `INSERT INTO settings (key, value) VALUES (?, ?)
-                  ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-            );
-            for (const [key, value] of Object.entries(payload.data.settings)) {
-              if (typeof value === 'string') {
-                settingsStmt.run(key, value);
-              }
-            }
-          });
-
-          // 执行事务
-          importTransaction();
+          }
+          await storage.configRepo.update(configUpdates);
 
           return { success: true, message: '导入成功' };
         } catch (error) {
