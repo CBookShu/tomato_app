@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSyncStore } from '@/stores/sync-store.js';
 
 const statusConfig = {
@@ -11,6 +11,8 @@ const statusConfig = {
 };
 
 export function SyncSettings() {
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const isLoggedIn = useSyncStore((s) => s.isLoggedIn);
   const status = useSyncStore((s) => s.status);
   const lastSyncTime = useSyncStore((s) => s.lastSyncTime);
@@ -24,8 +26,15 @@ export function SyncSettings() {
   const getDataDir = useSyncStore((s) => s.getDataDir);
 
   useEffect(() => {
-    void getStatus();
-    void getDataDir();
+    async function init() {
+      try {
+        await Promise.all([getStatus(), getDataDir()]);
+      } catch (e) {
+        console.error('SyncSettings init error:', e);
+        setLoadError((e as Error).message);
+      }
+    }
+    init();
   }, [getStatus, getDataDir]);
 
   const handleLogin = async () => {
@@ -61,6 +70,13 @@ export function SyncSettings() {
 
   return (
     <div className="p-4 space-y-6">
+      {/* 加载错误 */}
+      {loadError && (
+        <div className="p-2 text-sm text-red-600 bg-red-50 rounded">
+          加载失败: {loadError}
+        </div>
+      )}
+
       <h2 className="text-lg font-semibold">同步设置</h2>
 
       {/* GitHub 账户 */}
