@@ -35,7 +35,6 @@ function makeTask(input: NewTask, groupId: string): Task {
     completedPomodoros: 0,
     status: 'todo',
     groupId: input.groupId ?? groupId,
-    tags: input.tags,
     createdAt: now,
     updatedAt: now,
   };
@@ -102,7 +101,7 @@ export class TaskManager {
     return all.filter((t) => t.status === status);
   }
 
-  async editTask(id: string, updates: Partial<Pick<Task, 'title' | 'description' | 'tags'>>): Promise<Task> {
+  async editTask(id: string, updates: Partial<Pick<Task, 'title' | 'description'>>): Promise<Task> {
     return this.taskRepo.update(id, updates);
   }
 

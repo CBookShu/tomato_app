@@ -107,11 +107,11 @@ describe('TaskRepository', () => {
     expect(found).toBeNull();
   });
 
-  test('tags are serialized as JSON array', async () => {
-    const task = makeTask({ tags: ['urgent', 'frontend'] });
+  test('description is stored correctly', async () => {
+    const task = makeTask({ description: 'This is a test description' });
     await repo.create(task);
     const found = await repo.findById(task.id);
-    expect(found!.tags).toEqual(['urgent', 'frontend']);
+    expect(found!.description).toBe('This is a test description');
   });
 
   test('completedAt is stored correctly', async () => {

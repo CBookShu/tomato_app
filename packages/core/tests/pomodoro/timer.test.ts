@@ -28,7 +28,7 @@ describe('PomodoroTimer', () => {
     const state = timer.getState();
     expect(state.status).toBe('working');
     expect(state.remainingTime).toBe(25 * 60);
-    expect(onStatusChange).toHaveBeenCalledWith('working');
+    expect(onStatusChange).toHaveBeenCalledWith('working', 25 * 60);
   });
 
   test('tick emits every second with decrementing time', () => {
