@@ -56,7 +56,7 @@ tomato-data/
 
 ### `.meta/config.yaml`
 
-应用全局设置。
+应用全局设置。对应原 SQLite `settings` 表。
 
 ```yaml
 pomodoroDuration: 25
@@ -66,9 +66,19 @@ soundEnabled: true
 notificationEnabled: true
 ```
 
+| 字段 | 类型 | 功能说明 | 对应功能 |
+|------|------|---------|---------|
+| `pomodoroDuration` | number | 番茄时长（分钟） | 计时器倒计时长度 |
+| `shortBreakDuration` | number | 短休息时长（分钟） | 番茄完成后休息时间 |
+| `longBreakDuration` | number | 长休息时长（分钟） | 每 4 个番茄后长休息 |
+| `soundEnabled` | boolean | 是否播放提示音 | 番茄完成/休息结束时 |
+| `notificationEnabled` | boolean | 是否显示系统通知 | 番茄完成/休息结束时 |
+
+---
+
 ### `.meta/entities/groups/{group-id}.yaml`
 
-分组元数据。`taskOrder` 移到任务中，此处只保留分组自身属性。
+分组元数据。对应原 SQLite `task_groups` 表。`taskOrder` 字段已移至任务中。
 
 ```yaml
 name: 工作
@@ -77,9 +87,24 @@ createdAt: 2026-05-10T10:00:00Z
 updatedAt: 2026-05-10T12:00:00Z
 ```
 
+| 字段 | 类型 | 功能说明 | 对应功能 |
+|------|------|---------|---------|
+| `name` | string | 分组名称 | 显示在任务列表分组标题 |
+| `color` | string? | 分组颜色标识 | 分组标题颜色（可选） |
+| `createdAt` | string | 创建时间（ISO 8601） | 排序、审计 |
+| `updatedAt` | string | 最后修改时间（ISO 8601） | 同步冲突判断、审计 |
+
+**文件命名：** `{group-id}.yaml`，其中 `group-id` 为 UUID。默认分组 ID 固定为 `default`。
+
+**关联关系：**
+- 任务通过 `groupId` 字段引用此 ID
+- 任务排序通过任务的 `order` 字段实现，不再存储在分组中
+
+---
+
 ### `.meta/entities/tasks/{task-id}.yaml`
 
-任务元数据。包含 `order` 字段用于组内排序，`groupId` 关联分组。
+任务元数据。对应原 SQLite `tasks` 表。新增 `order` 字段用于组内排序。
 
 ```yaml
 title: 完成设计文档
@@ -96,9 +121,42 @@ updatedAt: 2026-05-10T12:00:00Z
 completedAt: null
 ```
 
+| 字段 | 类型 | 功能说明 | 对应功能 |
+|------|------|---------|---------|
+| `title` | string | 任务标题 | 显示在任务列表 |
+| `status` | enum | 任务状态：`todo` / `in-progress` / `completed` | 状态筛选、显示样式 |
+| `groupId` | string? | 所属分组 ID | 关联 `.meta/entities/groups/{groupId}.yaml` |
+| `completedPomodoros` | number | 已完成的番茄数 | 显示在任务项、统计 |
+| `lastPomodoroTime` | string? | 最后一次番茄日期（YYYY-MM-DD） | 统计每日番茄数 |
+| `order` | number | 组内排序序号（从 1 开始） | 任务列表排序位置 |
+| `tags` | string[]? | 标签列表 | 分类、筛选（可选） |
+| `createdAt` | string | 创建时间（ISO 8601） | 排序、审计 |
+| `updatedAt` | string | 最后修改时间（ISO 8601） | 同步冲突判断、审计 |
+| `completedAt` | string? | 完成时间（ISO 8601） | 统计、显示 |
+
+**文件命名：** `{task-id}.yaml`，其中 `task-id` 为 UUID。
+
+**关联关系：**
+- `groupId` → `.meta/entities/groups/{groupId}.yaml`
+- `id` → `tasks/{task-id}.md`（笔记文件，可选）
+- `lastPomodoroTime` → `stats/{date}.yaml`（统计关联）
+
+**状态流转：**
+```
+todo → in-progress → completed
+  ↑___________________|
+```
+- `todo`：初始状态
+- `in-progress`：完成第一个番茄后自动切换
+- `completed`：用户手动标记完成
+
+---
+
 ### `tasks/{task-id}.md`
 
 任务笔记，纯文本 Markdown 格式。用户可直接编辑。文件可选存在，无笔记则无此文件。
+
+**对应原 SQLite `tasks.notes` 字段，现独立为文件。**
 
 ```markdown
 # 设计文档
@@ -110,9 +168,22 @@ completedAt: null
 - [ ] 编写测试
 ```
 
+| 属性 | 说明 |
+|------|------|
+| 文件名 | `{task-id}.md`，与 `.meta/entities/tasks/{task-id}.yaml` 同 ID |
+| 格式 | 纯文本 Markdown |
+| 可选性 | 无笔记内容时不创建此文件 |
+| 用户编辑 | 是，用户可直接用编辑器修改 |
+
+**关联关系：**
+- 文件名中的 ID → `.meta/entities/tasks/{task-id}.yaml`
+- 加载时：读取 YAML 获取元数据，检查是否存在对应 `.md` 文件，存在则作为 `notes` 字段注入
+
+---
+
 ### `stats/{date}.yaml`
 
-每日统计。此文件可从任务元数据重建，非权威数据源。
+每日统计。对应原 SQLite `daily_stats` 表。此文件可从任务元数据重建，非权威数据源。
 
 ```yaml
 totalPomodoros: 5
@@ -123,14 +194,91 @@ tasks:
   - task-003
 ```
 
+| 字段 | 类型 | 功能说明 | 对应功能 |
+|------|------|---------|---------|
+| `totalPomodoros` | number | 当日完成的番茄总数 | 统计页面显示 |
+| `completedTasks` | number | 当日完成的任务数 | 统计页面显示 |
+| `tasks` | string[] | 当日有活动的任务 ID 列表 | 统计详情、趋势图 |
+
+**文件命名：** `{date}.yaml`，格式为 `YYYY-MM-DD`，如 `2026-05-10.yaml`。
+
+**重建逻辑：**
+- `totalPomodoros` = 所有任务的 `lastPomodoroTime == date` 的 `completedPomodoros` 累加
+- `completedTasks` = 所有任务的 `completedAt` 在当日范围内的数量
+- `tasks` = 当日有番茄或完成的所有任务 ID
+
+**同步冲突处理：**
+- 由于可重建，冲突时可选择丢弃远程版本，本地重建
+
 ---
 
 ## 数据关系
 
+### 实体关系图
+
 ```
-分组 (group) 1──N 任务
-任务 0..1──1 笔记
-任务 N──N 统计
+┌─────────────────┐
+│     Group       │
+│ (分组)          │
+├─────────────────┤
+│ id (文件名)     │◄─────────────────┐
+│ name            │                  │
+│ color           │                  │
+│ createdAt       │                  │
+│ updatedAt       │                  │
+└─────────────────┘                  │
+                                     │ groupId
+                                     │
+┌─────────────────┐    0..1    ┌─────────────────┐
+│     Task        │────────────│   Task Notes    │
+│ (任务元数据)    │            │ (任务笔记)      │
+├─────────────────┤            ├─────────────────┤
+│ id (文件名)     │◄───┐       │ id (文件名)     │
+│ title           │    │       │ (Markdown 内容) │
+│ status          │    │       └─────────────────┘
+│ groupId ────────┘    │
+│ completedPomodoros   │              ┌─────────────────┐
+│ lastPomodoroTime─────┼──────────────│   Daily Stats   │
+│ order            │   │              │ (每日统计)      │
+│ tags             │   │              ├─────────────────┤
+│ createdAt        │   │              │ date (文件名)   │
+│ updatedAt        │   │              │ totalPomodoros  │
+│ completedAt      │   │              │ completedTasks  │
+└─────────────────┘   │              │ tasks[] ────────┼──┐
+                      │              └─────────────────┘  │
+                      │                     ▲             │
+                      │                     │ tasks 列表   │
+                      └─────────────────────┴─────────────┘
+```
+
+### 关联关系说明
+
+| 源 | 目标 | 关联方式 | 说明 |
+|----|------|---------|------|
+| Task | Group | `task.groupId → group.id` | 任务所属分组 |
+| Task | Task Notes | `task.id == notes.id` | 同 ID 的 .md 文件 |
+| Task | Daily Stats | `task.lastPomodoroTime → stats.date` | 通过日期关联 |
+| Daily Stats | Task | `stats.tasks[] → task.id` | 当日活动任务列表 |
+
+### 数据流
+
+```
+用户操作
+    │
+    ▼
+┌─────────────┐
+│ 内存状态    │ ←── React Store (Zustand)
+└─────────────┘
+    │
+    ▼
+┌─────────────┐
+│ 文件系统    │ ←── YAML / Markdown 文件
+└─────────────┘
+    │
+    ▼
+┌─────────────┐
+│ Git 仓库    │ ←── 版本控制、同步
+└─────────────┘
 ```
 
 **关键决策：**
