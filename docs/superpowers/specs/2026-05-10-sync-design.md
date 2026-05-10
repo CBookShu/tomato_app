@@ -78,11 +78,15 @@ notificationEnabled: true
 
 ### `.meta/entities/groups/{group-id}.yaml`
 
-分组元数据。对应原 SQLite `task_groups` 表。`taskOrder` 字段已移至任务中。
+分组元数据。对应原 SQLite `task_groups` 表。`taskOrder` 存储分组内任务的排序。
 
 ```yaml
 name: 工作
 color: blue
+taskOrder:
+  - task-003
+  - task-001
+  - task-002
 createdAt: 2026-05-10T10:00:00Z
 updatedAt: 2026-05-10T12:00:00Z
 ```
@@ -91,20 +95,21 @@ updatedAt: 2026-05-10T12:00:00Z
 |------|------|---------|---------|
 | `name` | string | 分组名称 | 显示在任务列表分组标题 |
 | `color` | string? | 分组颜色标识 | 分组标题颜色（可选） |
+| `taskOrder` | string[] | 分组内任务 ID 列表（按顺序排列） | 任务列表排序 |
 | `createdAt` | string | 创建时间（ISO 8601） | 排序、审计 |
 | `updatedAt` | string | 最后修改时间（ISO 8601） | 同步冲突判断、审计 |
 
 **文件命名：** `{group-id}.yaml`，其中 `group-id` 为 UUID。默认分组 ID 固定为 `default`。
 
 **关联关系：**
-- 任务通过 `groupId` 字段引用此 ID
-- 任务排序通过任务的 `order` 字段实现，不再存储在分组中
+- `taskOrder` 数组中的 ID → `.meta/entities/tasks/{task-id}.yaml`
+- 任务通过 `groupId` 字段反向引用此分组
 
 ---
 
 ### `.meta/entities/tasks/{task-id}.yaml`
 
-任务元数据。对应原 SQLite `tasks` 表。新增 `order` 字段用于组内排序。
+任务元数据。对应原 SQLite `tasks` 表。
 
 ```yaml
 title: 完成设计文档
@@ -112,10 +117,6 @@ status: in-progress
 groupId: group-abc123
 completedPomodoros: 2
 lastPomodoroTime: "2026-05-10"
-order: 1
-tags:
-  - design
-  - sync
 createdAt: 2026-05-10T10:00:00Z
 updatedAt: 2026-05-10T12:00:00Z
 completedAt: null
@@ -128,8 +129,6 @@ completedAt: null
 | `groupId` | string? | 所属分组 ID | 关联 `.meta/entities/groups/{groupId}.yaml` |
 | `completedPomodoros` | number | 已完成的番茄数 | 显示在任务项、统计 |
 | `lastPomodoroTime` | string? | 最后一次番茄日期（YYYY-MM-DD） | 统计每日番茄数 |
-| `order` | number | 组内排序序号（从 1 开始） | 任务列表排序位置 |
-| `tags` | string[]? | 标签列表 | 分类、筛选（可选） |
 | `createdAt` | string | 创建时间（ISO 8601） | 排序、审计 |
 | `updatedAt` | string | 最后修改时间（ISO 8601） | 同步冲突判断、审计 |
 | `completedAt` | string? | 完成时间（ISO 8601） | 统计、显示 |
@@ -183,7 +182,7 @@ todo → in-progress → completed
 
 ### `stats/{date}.yaml`
 
-每日统计。对应原 SQLite `daily_stats` 表。此文件可从任务元数据重建，非权威数据源。
+每日统计。对应原 SQLite `daily_stats` 表。通过一致性维护保持数据正确。
 
 ```yaml
 totalPomodoros: 5
@@ -202,13 +201,12 @@ tasks:
 
 **文件命名：** `{date}.yaml`，格式为 `YYYY-MM-DD`，如 `2026-05-10.yaml`。
 
-**重建逻辑：**
-- `totalPomodoros` = 所有任务的 `lastPomodoroTime == date` 的 `completedPomodoros` 累加
-- `completedTasks` = 所有任务的 `completedAt` 在当日范围内的数量
-- `tasks` = 当日有番茄或完成的所有任务 ID
+**一致性维护：**
+- 完成番茄时：`totalPomodoros++`，将任务 ID 加入 `tasks`
+- 完成任务时：`completedTasks++`，将任务 ID 加入 `tasks`
+- 同步时：作为普通数据文件同步，保持一致性
 
-**同步冲突处理：**
-- 由于可重建，冲突时可选择丢弃远程版本，本地重建
+**未来考虑：** 支持从任务元数据重建（当前不实现）
 
 ---
 
@@ -224,11 +222,13 @@ tasks:
 │ id (文件名)     │◄─────────────────┐
 │ name            │                  │
 │ color           │                  │
-│ createdAt       │                  │
-│ updatedAt       │                  │
-└─────────────────┘                  │
-                                     │ groupId
-                                     │
+│ taskOrder[] ────┼──────┐           │
+│ createdAt       │      │           │
+│ updatedAt       │      │           │
+└─────────────────┘      │           │
+                         │           │
+                         │ 排序引用  │ groupId
+                         │           │
 ┌─────────────────┐    0..1    ┌─────────────────┐
 │     Task        │────────────│   Task Notes    │
 │ (任务元数据)    │            │ (任务笔记)      │
@@ -239,12 +239,12 @@ tasks:
 │ groupId ────────┘    │
 │ completedPomodoros   │              ┌─────────────────┐
 │ lastPomodoroTime─────┼──────────────│   Daily Stats   │
-│ order            │   │              │ (每日统计)      │
-│ tags             │   │              ├─────────────────┤
-│ createdAt        │   │              │ date (文件名)   │
-│ updatedAt        │   │              │ totalPomodoros  │
-│ completedAt      │   │              │ completedTasks  │
-└─────────────────┘   │              │ tasks[] ────────┼──┐
+│ createdAt        │   │              │ (每日统计)      │
+│ updatedAt        │   │              ├─────────────────┤
+│ completedAt      │   │              │ date (文件名)   │
+└─────────────────┘   │              │ totalPomodoros  │
+                      │              │ completedTasks  │
+                      │              │ tasks[] ────────┼──┐
                       │              └─────────────────┘  │
                       │                     ▲             │
                       │                     │ tasks 列表   │
@@ -255,6 +255,7 @@ tasks:
 
 | 源 | 目标 | 关联方式 | 说明 |
 |----|------|---------|------|
+| Group | Task | `group.taskOrder[] → task.id` | 分组内任务排序 |
 | Task | Group | `task.groupId → group.id` | 任务所属分组 |
 | Task | Task Notes | `task.id == notes.id` | 同 ID 的 .md 文件 |
 | Task | Daily Stats | `task.lastPomodoroTime → stats.date` | 通过日期关联 |
@@ -282,9 +283,9 @@ tasks:
 ```
 
 **关键决策：**
-- `order` 在任务中，不在分组中 → 排序操作只修改单个任务文件
+- `taskOrder` 在分组中，以数组顺序排列 → 创建分支保存本地状态
 - 笔记文件可选 → 无笔记时不创建空文件
-- 统计可重建 → 同步冲突时可丢弃远程版本
+- 统计通过一致性维护 → 完成番茄/任务时同步更新
 
 ---
 
@@ -384,58 +385,118 @@ tasks:
 
 ## 冲突处理
 
-**原则：不自动解决冲突，安全中止并提示用户。**
+**原则：保护本地数据，让用户自行解决冲突。**
 
-### 冲突检测
+### 冲突场景
 
-`git pull --rebase` 返回非零退出码时，判定为冲突。
+同步过程中 `git pull --rebase` 返回非零退出码时，判定为冲突。
 
 ### 冲突处理流程
 
 ```
-1. git rebase --abort（中止 rebase，恢复到 pull 前状态）
+检测到冲突时：
 
-2. 保存本地状态到临时分支
-   git branch "conflict-backup-{timestamp}"
+1. 保持 rebase 冲突状态（不 abort）
+   - Git 已标记冲突文件
+   - 本地数据仍在，未被覆盖
 
-3. 重置到远程状态
+2. 创建保存分支
+   git branch "conflict-{timestamp}"
+
+3. 中止 rebase，恢复到 pull 前状态
+   git rebase --abort
+
+4. 提示用户有冲突，需要手动解决
+```
+
+### 用户操作流程
+
+用户在终端手动解决冲突：
+
+```
+1. 进入数据目录
+   cd {tomato-data-path}
+
+2. 从保存分支合并
+   git merge conflict-{timestamp}
+
+3. 此时会显示冲突文件列表
+   Git 会标记冲突内容（<<<<<<< / ======= / >>>>>>>）
+
+4. 手动编辑冲突文件，保留正确内容
+
+5. 标记冲突已解决
+   git add .
+   git commit -m "resolve sync conflict"
+
+6. 推送到远程
+   git push origin main
+
+7. 回到应用，点击"同步完成"按钮
+```
+
+### 应用检测冲突解决
+
+```
+用户点击"同步完成"后：
+
+1. 检查 git status 是否干净
+   └─ 有未提交变更 → 提示"请先提交解决后的变更"
+   └─ 干净 → 继续
+
+2. 检查本地分支与远程是否同步
    git fetch origin
-   git reset --hard origin/main
+   git status
+   └─ behind → 提示"请先 push 到远程"
+   └─ 同步 → 删除冲突分支，恢复正常状态
 
-4. 保存本地变更到待同步目录
-   将本地变更复制到 .meta/pending-sync/
-
-5. 显示用户提示
+3. 删除冲突分支
+   git branch -d conflict-{timestamp}
 ```
 
-### 用户提示内容
+### 用户提示面板
 
 ```
-检测到同步冲突
-
-本地数据已保存到 .meta/pending-sync/
-远程数据已更新到本地
-
-请在终端手动解决冲突：
-1. cd {tomato-data-path}
-2. git checkout conflict-backup-{timestamp}
-3. 手动合并变更
-4. git add . && git commit -m "resolve conflict"
-5. git push origin main
-
-解决后点击"重新同步"继续
+┌─────────────────────────────────────┐
+│ ⚠ 同步冲突                           │
+├─────────────────────────────────────┤
+│ 远程数据与本地数据存在冲突。          │
+│                                     │
+│ 本地数据已保存到分支：                │
+│ conflict-2026-05-10-143022          │
+│                                     │
+│ 请在终端手动解决：                    │
+│                                     │
+│ 1. cd ~/Library/Application Support/ │
+│    tomato-app/tomato-data            │
+│ 2. git merge conflict-2026-05-10-*   │
+│ 3. 编辑冲突文件，保留正确内容          │
+│ 4. git add . && git commit           │
+│ 5. git push origin main              │
+│                                     │
+│ [复制路径]  [打开终端]                │
+│                                     │
+│ 解决后点击下方按钮：                  │
+│ [同步完成]                           │
+└─────────────────────────────────────┘
 ```
 
-### 重新同步
-
-用户手动解决冲突后：
+### 状态机
 
 ```
-1. 检查 .meta/pending-sync/ 是否存在
-2. 如存在，提示用户是否已手动合并
-3. 用户确认后，删除 pending-sync 目录
-4. 重新执行正常同步流程
+正常状态 ──同步──→ 检查冲突
+                      │
+                      ├─ 无冲突 → 正常状态
+                      │
+                      └─ 有冲突 → 冲突状态
+                                    │
+                                    └─ 用户解决 → 同步完成 → 正常状态
 ```
+
+| 状态 | 说明 | 可用操作 |
+|------|------|---------|
+| 正常 | 无冲突，可正常使用 | 同步、编辑、查看 |
+| 冲突 | 检测到冲突，等待解决 | 打开终端、复制路径、同步完成 |
 
 ---
 
