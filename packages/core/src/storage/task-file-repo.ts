@@ -9,10 +9,12 @@ interface TaskYaml {
   id: string;
   title: string;
   description?: string;
+  notes?: string;
   status: 'todo' | 'in-progress' | 'completed';
   groupId?: string;
   completedPomodoros: number;
   lastPomodoroTime?: string;
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
@@ -23,10 +25,12 @@ function taskToYaml(task: Task): TaskYaml {
     id: task.id,
     title: task.title,
     description: task.description,
+    notes: task.notes,
     status: task.status,
     groupId: task.groupId,
     completedPomodoros: task.completedPomodoros,
     lastPomodoroTime: task.lastPomodoroTime,
+    tags: task.tags ? [...task.tags] : undefined,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
     completedAt: task.completedAt,
@@ -38,10 +42,12 @@ function yamlToTask(yaml: TaskYaml): Task {
     id: yaml.id,
     title: yaml.title,
     description: yaml.description,
+    notes: yaml.notes,
     status: yaml.status,
     groupId: yaml.groupId,
     completedPomodoros: yaml.completedPomodoros,
     lastPomodoroTime: yaml.lastPomodoroTime,
+    tags: yaml.tags,
     createdAt: yaml.createdAt,
     updatedAt: yaml.updatedAt,
     completedAt: yaml.completedAt,

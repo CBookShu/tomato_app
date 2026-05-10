@@ -8,6 +8,7 @@ import { TaskDetail } from '@/components/TaskList/TaskDetail.js';
 import { DailyStatsCard } from '@/components/Stats/DailyStatsCard.js';
 import { WeeklyTrend } from '@/components/Stats/WeeklyTrend.js';
 import { SettingsPage } from '@/components/Settings/SettingsPage.js';
+import { ConflictPrompt } from '@/components/Sync/ConflictPrompt.js';
 import { useIpc } from '@/hooks/useIpc.js';
 import { useSound } from '@/hooks/useSound.js';
 import { useTimerEvents } from '@/hooks/useTimerEvents.js';
@@ -138,6 +139,7 @@ export default function App() {
   return (
     <AppShell activeTab={activeTab} onTabChange={setActiveTab} onNavigateToTasks={() => setActiveTab('tasks')}>
       {renderContent()}
+      <ConflictPrompt />
     </AppShell>
   );
 }

@@ -160,6 +160,15 @@ declare global {
         ...args: IpcChannelMap[C]['request'] extends void ? [] : [IpcChannelMap[C]['request']]
       ): Promise<IpcChannelMap[C]['response']>;
       on(channel: IpcEventChannel, callback: (...args: unknown[]) => void): () => void;
+      sync: {
+        login: () => Promise<boolean>;
+        logout: () => Promise<void>;
+        getStatus: () => Promise<{ isLoggedIn: boolean; syncStatus?: string }>;
+        sync: () => Promise<SyncResult>;
+        resolveConflict: () => Promise<SyncResult>;
+        rollback: () => Promise<void>;
+        getDataDir: () => Promise<string>;
+      };
     };
   }
 }

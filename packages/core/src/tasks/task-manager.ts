@@ -101,7 +101,7 @@ export class TaskManager {
     return all.filter((t) => t.status === status);
   }
 
-  async editTask(id: string, updates: Partial<Pick<Task, 'title' | 'description'>>): Promise<Task> {
+  async editTask(id: string, updates: Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Task> {
     return this.taskRepo.update(id, updates);
   }
 

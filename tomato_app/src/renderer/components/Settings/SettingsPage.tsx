@@ -8,6 +8,7 @@ import { useSettingsStore } from '@/stores/settings-store.js';
 import { useIpc } from '@/hooks/useIpc.js';
 import { IPC } from '@shared/ipc-channels.js';
 import type { ExportData } from '@shared/ipc-channels.js';
+import { SyncSettings } from '@/components/Sync/SyncSettings.js';
 
 export function SettingsPage() {
   const { invoke } = useIpc();
@@ -201,6 +202,15 @@ export function SettingsPage() {
               onCheckedChange={(v) => updateKey('auto_start', v ? 'true' : 'false')}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">数据同步</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SyncSettings />
         </CardContent>
       </Card>
 
