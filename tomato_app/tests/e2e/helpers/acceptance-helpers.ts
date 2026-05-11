@@ -32,7 +32,7 @@ export async function createDefaultTask(page: Page, title = '新任务'): Promis
     await newTaskItem.locator('button').last().click();
     await newTaskItem.getByRole('button', { name: '编辑' }).click();
 
-    await page.keyboard.press('Meta+A');
+    await page.keyboard.press('ControlOrMeta+A');
     await page.keyboard.type(title);
     await page.keyboard.press('Enter');
   }
