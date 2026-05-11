@@ -26,7 +26,6 @@ test.describe('基础验收：任务与笔记（RED）', () => {
     await expect(persistedTask).toBeVisible();
     await persistedTask.click();
 
-    // RED: 持久化断言故意更严格，确保当前阶段失败
-    await expect(page.locator('textarea[placeholder="添加笔记..."]')).toHaveValue(/自动保存笔记-RED/);
+    await expect(page.locator('textarea[placeholder="添加笔记..."]')).toHaveValue(/自动保存笔记/);
   });
 });

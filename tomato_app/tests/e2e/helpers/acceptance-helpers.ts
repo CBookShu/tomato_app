@@ -2,13 +2,19 @@ import { ElectronApplication, Locator, Page } from '@playwright/test';
 import { expect } from '../fixtures';
 
 export async function clearDataAndReload(page: Page, electronApp: ElectronApplication): Promise<void> {
+  void electronApp;
   await page.waitForLoadState('domcontentloaded');
-  await electronApp.evaluate(async ({ ipcMain }) => {
-    const handlers = ipcMain.listeners('test:clear-database');
-    if (handlers.length > 0) {
-      await ipcMain.invoke('test:clear-database');
+  const clearResult = await page.evaluate(async () => {
+    try {
+      return await window.electronAPI.invoke('test:clear-database');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`test:clear-database handler is unavailable: ${message}`);
     }
   });
+  if (!clearResult?.success) {
+    throw new Error('test:clear-database did not return success');
+  }
   await page.reload();
   await page.waitForLoadState('domcontentloaded');
 }
@@ -22,20 +28,13 @@ export async function createDefaultTask(page: Page, title = '新任务'): Promis
   await expect(newTaskItem).toBeVisible();
 
   if (title !== '新任务') {
-    await page.evaluate(async (nextTitle) => {
-      const tasks = await window.electronAPI.invoke('task:getAll');
-      const target = tasks.find((task: { id: string; title: string }) => task.title === '新任务');
-      if (!target) {
-        throw new Error('Unable to find default task to rename');
-      }
-      await window.electronAPI.invoke('task:edit', {
-        id: target.id,
-        updates: { title: nextTitle },
-      });
-    }, title);
-    await page.reload();
-    await page.waitForLoadState('domcontentloaded');
-    await page.getByRole('tab', { name: '任务' }).click();
+    await newTaskItem.hover();
+    await newTaskItem.locator('button').last().click();
+    await newTaskItem.getByRole('button', { name: '编辑' }).click();
+
+    await page.keyboard.press('Meta+A');
+    await page.keyboard.type(title);
+    await page.keyboard.press('Enter');
   }
 
   const taskItem = page.getByTestId('task-item').filter({ hasText: title }).first();
