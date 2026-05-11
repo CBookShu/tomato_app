@@ -11,16 +11,34 @@ export const LEGACY_SETTINGS_MAP = {
 
 export type CanonicalSettingKey = keyof typeof LEGACY_SETTINGS_MAP;
 
+export const CANONICAL_SETTING_DEFAULTS: Record<CanonicalSettingKey, string> = {
+  pomodoroDuration: '25',
+  shortBreakDuration: '5',
+  longBreakDuration: '15',
+  longBreakInterval: '4',
+  soundEnabled: 'true',
+  notificationEnabled: 'true',
+  darkMode: 'false',
+  autoStart: 'false',
+};
+
+export function getLegacySettingKey(key: CanonicalSettingKey): string {
+  return LEGACY_SETTINGS_MAP[key];
+}
+
 export function readSetting(
   settings: Record<string, string>,
   key: CanonicalSettingKey,
   fallback: string,
 ): string {
   const canonical = settings[key];
-  if (canonical !== undefined) return canonical;
+  const legacy = settings[getLegacySettingKey(key)];
 
-  const legacy = settings[LEGACY_SETTINGS_MAP[key]];
-  if (legacy !== undefined) return legacy;
+  // Preserve legacy values when canonical is still at default fallback.
+  if (legacy !== undefined && (canonical === undefined || canonical === fallback)) {
+    return legacy;
+  }
+  if (canonical !== undefined) return canonical;
 
   return fallback;
 }
@@ -28,8 +46,12 @@ export function readSetting(
 export function normalizeSettings(raw: Record<string, string>): Record<string, string> {
   const normalized: Record<string, string> = { ...raw };
 
-  for (const [canonical, legacy] of Object.entries(LEGACY_SETTINGS_MAP)) {
-    if (normalized[canonical] === undefined && raw[legacy] !== undefined) {
+  for (const [canonical, legacy] of Object.entries(LEGACY_SETTINGS_MAP) as Array<[CanonicalSettingKey, string]>) {
+    const canonicalVal = normalized[canonical];
+    const legacyVal = raw[legacy];
+    if (legacyVal !== undefined && (canonicalVal === undefined || canonicalVal === CANONICAL_SETTING_DEFAULTS[canonical])) {
+      normalized[canonical] = legacyVal;
+    } else if (normalized[canonical] === undefined && legacyVal !== undefined) {
       normalized[canonical] = raw[legacy];
     }
   }

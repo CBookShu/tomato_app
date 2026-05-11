@@ -9,11 +9,11 @@ import { useIpc } from '@/hooks/useIpc.js';
 import { IPC } from '@shared/ipc-channels.js';
 import type { ExportData } from '@shared/ipc-channels.js';
 import { SyncSettings } from '@/components/Sync/SyncSettings.js';
-import { LEGACY_SETTINGS_MAP, normalizeSettings, readSetting } from '@/lib/settings-keys.js';
+import { LEGACY_SETTINGS_MAP, getLegacySettingKey, normalizeSettings, readSetting } from '@/lib/settings-keys.js';
 
 export function SettingsPage() {
   const { invoke } = useIpc();
-  const { settings, setAll, set } = useSettingsStore();
+  const { settings, setAll, set, remove } = useSettingsStore();
   const [loaded, setLoaded] = useState(false);
 
   // 数据导出
@@ -103,8 +103,11 @@ export function SettingsPage() {
   if (!loaded) return <div className="text-center text-gray-400 py-8">加载中...</div>;
 
   const updateKey = async (key: keyof typeof LEGACY_SETTINGS_MAP, value: string) => {
+    const legacyKey = getLegacySettingKey(key);
     set(key, value);
+    remove(legacyKey);
     await invoke(IPC.SETTINGS_SET, { key, value });
+    await invoke(IPC.SETTINGS_DELETE, { key: legacyKey });
   };
 
   return (
