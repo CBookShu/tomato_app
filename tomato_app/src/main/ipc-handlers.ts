@@ -251,12 +251,11 @@ export function registerIpcHandlers(
       } else {
         (updates as Record<string, string>)[key] = value;
       }
-      const result = await configRepo!.update(updates);
+      await configRepo!.update(updates);
       // Update timer config when timer settings change
       if (isTimerSettingKey) {
         await updateTimerConfig();
       }
-      return result;
     });
     ipcMain.handle(IPC.SETTINGS_GET_ALL, async () => {
       const config = await configRepo!.get();
