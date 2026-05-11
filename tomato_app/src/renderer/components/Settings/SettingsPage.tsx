@@ -110,6 +110,14 @@ export function SettingsPage() {
     await invoke(IPC.SETTINGS_DELETE, { key: legacyKey });
   };
 
+  const updateNumericKey = async (
+    key: 'pomodoroDuration' | 'shortBreakDuration' | 'longBreakDuration' | 'longBreakInterval',
+    value: string,
+  ) => {
+    if (value.trim() === '') return;
+    await updateKey(key, value);
+  };
+
   return (
     <div className="flex flex-col gap-4 max-w-md mx-auto w-full pt-4">
       <Card>
@@ -122,7 +130,7 @@ export function SettingsPage() {
             <Input
               type="number" min={1} max={120}
               value={readSetting(settings, 'pomodoroDuration', '25')}
-              onChange={(e) => updateKey('pomodoroDuration', e.target.value)}
+              onChange={(e) => updateNumericKey('pomodoroDuration', e.target.value)}
               className="w-20"
             />
           </div>
@@ -131,7 +139,7 @@ export function SettingsPage() {
             <Input
               type="number" min={1} max={30}
               value={readSetting(settings, 'shortBreakDuration', '5')}
-              onChange={(e) => updateKey('shortBreakDuration', e.target.value)}
+              onChange={(e) => updateNumericKey('shortBreakDuration', e.target.value)}
               className="w-20"
             />
           </div>
@@ -140,7 +148,7 @@ export function SettingsPage() {
             <Input
               type="number" min={1} max={60}
               value={readSetting(settings, 'longBreakDuration', '15')}
-              onChange={(e) => updateKey('longBreakDuration', e.target.value)}
+              onChange={(e) => updateNumericKey('longBreakDuration', e.target.value)}
               className="w-20"
             />
           </div>
@@ -149,7 +157,7 @@ export function SettingsPage() {
             <Input
               type="number" min={1} max={10}
               value={readSetting(settings, 'longBreakInterval', '4')}
-              onChange={(e) => updateKey('longBreakInterval', e.target.value)}
+              onChange={(e) => updateNumericKey('longBreakInterval', e.target.value)}
               className="w-20"
             />
           </div>

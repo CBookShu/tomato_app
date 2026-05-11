@@ -17,7 +17,7 @@ export function useTimerStart() {
 
   const getPomodoroDuration = useCallback(() => {
     const duration = parseInt(readSetting(settings, 'pomodoroDuration', '25'), 10);
-    return duration * 60;
+    return (Number.isNaN(duration) ? 25 : duration) * 60;
   }, [settings]);
 
   const start = useCallback(async (taskId?: string) => {
