@@ -13,6 +13,7 @@ export const test = base.extend<MyFixtures>({
       env: {
         ...process.env,
         NODE_ENV: 'test',
+        TZ: 'UTC',
         TEST_POMODORO_DURATION: '5',    // 5秒番茄钟
         TEST_BREAK_DURATION: '3',        // 3秒休息
         TEST_LONG_BREAK_DURATION: '5',   // 5秒长休息
