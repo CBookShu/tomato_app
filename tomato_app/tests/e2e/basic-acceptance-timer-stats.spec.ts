@@ -1,8 +1,6 @@
 import { test, expect } from './fixtures';
 import { clearDataAndReload, createDefaultTask } from './helpers/acceptance-helpers';
 
-process.env.TZ = 'UTC';
-
 test.describe('基础验收：计时与统计联动', () => {
   test.beforeEach(async ({ page, electronApp }) => {
     await clearDataAndReload(page, electronApp);
