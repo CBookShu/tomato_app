@@ -111,7 +111,7 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-4 max-w-md mx-auto w-full py-4 px-4">
+    <div className="flex flex-col gap-4 max-w-md mx-auto w-full pt-4">
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-medium">计时设置</CardTitle>
