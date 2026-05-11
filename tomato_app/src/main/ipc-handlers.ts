@@ -38,14 +38,30 @@ let currentRemainingTime: number = 0;
 // Sync service instance
 const syncService = new SyncService();
 
+function parsePositiveIntOrNull(value: unknown): number | null {
+  const parsed = typeof value === 'number'
+    ? Math.floor(value)
+    : parseInt(String(value), 10);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return parsed;
+}
+
+function sanitizePositiveInt(value: unknown, fallback: number): number {
+  return parsePositiveIntOrNull(value) ?? fallback;
+}
+
 async function getTimerConfig(): Promise<Partial<PomodoroConfig>> {
   // 测试环境优先使用环境变量
   if (process.env.NODE_ENV === 'test') {
     return {
-      pomodoroDuration: parseInt(process.env.TEST_POMODORO_DURATION || '5', 10),
-      shortBreakDuration: parseInt(process.env.TEST_BREAK_DURATION || '3', 10),
-      longBreakDuration: parseInt(process.env.TEST_LONG_BREAK_DURATION || '5', 10),
-      longBreakInterval: 4,
+      pomodoroDuration: sanitizePositiveInt(process.env.TEST_POMODORO_DURATION, 5),
+      shortBreakDuration: sanitizePositiveInt(process.env.TEST_BREAK_DURATION, 3),
+      longBreakDuration: sanitizePositiveInt(process.env.TEST_LONG_BREAK_DURATION, 5),
+      longBreakInterval: sanitizePositiveInt(4, 4),
     };
   }
 
@@ -55,11 +71,16 @@ async function getTimerConfig(): Promise<Partial<PomodoroConfig>> {
   }
 
   const config = await configRepo.get();
+  const pomodoroDuration = sanitizePositiveInt(config.pomodoroDuration, 25);
+  const shortBreakDuration = sanitizePositiveInt(config.shortBreakDuration, 5);
+  const longBreakDuration = sanitizePositiveInt(config.longBreakDuration, 15);
+  const longBreakInterval = sanitizePositiveInt(config.longBreakInterval, 4);
+
   return {
-    pomodoroDuration: (config.pomodoroDuration ?? 25) * 60,
-    shortBreakDuration: (config.shortBreakDuration ?? 5) * 60,
-    longBreakDuration: (config.longBreakDuration ?? 15) * 60,
-    longBreakInterval: config.longBreakInterval ?? 4,
+    pomodoroDuration: pomodoroDuration * 60,
+    shortBreakDuration: shortBreakDuration * 60,
+    longBreakDuration: longBreakDuration * 60,
+    longBreakInterval,
   };
 }
 
@@ -217,9 +238,14 @@ export function registerIpcHandlers(
       const updates: Partial<AppConfig> = {};
       const key = payload.key as string;
       const value = payload.value as string;
+      const isTimerSettingKey = TIMER_SETTING_KEYS.includes(key as typeof TIMER_SETTING_KEYS[number]);
       // Type conversion based on key
-      if (TIMER_SETTING_KEYS.includes(key as typeof TIMER_SETTING_KEYS[number])) {
-        (updates as Record<string, number>)[key] = parseInt(value, 10);
+      if (isTimerSettingKey) {
+        const parsedValue = parsePositiveIntOrNull(value);
+        if (parsedValue === null) {
+          return false;
+        }
+        (updates as Record<string, number>)[key] = parsedValue;
       } else if (BOOLEAN_SETTING_KEYS.includes(key as typeof BOOLEAN_SETTING_KEYS[number])) {
         (updates as Record<string, boolean>)[key] = value === 'true';
       } else {
@@ -227,7 +253,7 @@ export function registerIpcHandlers(
       }
       const result = await configRepo!.update(updates);
       // Update timer config when timer settings change
-      if (TIMER_SETTING_KEYS.includes(key as typeof TIMER_SETTING_KEYS[number])) {
+      if (isTimerSettingKey) {
         await updateTimerConfig();
       }
       return result;
@@ -334,7 +360,10 @@ export function registerIpcHandlers(
             if (typeof value === 'string') {
               // Type conversion based on key
               if (TIMER_SETTING_KEYS.includes(key as typeof TIMER_SETTING_KEYS[number])) {
-                (configUpdates as Record<string, number>)[key] = parseInt(value, 10);
+                const parsedValue = parsePositiveIntOrNull(value);
+                if (parsedValue !== null) {
+                  (configUpdates as Record<string, number>)[key] = parsedValue;
+                }
               } else if (BOOLEAN_SETTING_KEYS.includes(key as typeof BOOLEAN_SETTING_KEYS[number])) {
                 (configUpdates as Record<string, boolean>)[key] = value === 'true';
               } else {
