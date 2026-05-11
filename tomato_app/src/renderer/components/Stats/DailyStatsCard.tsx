@@ -5,15 +5,6 @@ import { Timer, CheckCircle2, Clock } from 'lucide-react';
 
 export function DailyStatsCard() {
   const today = useStatsStore((s) => s.today);
-  const weekly = useStatsStore((s) => s.weekly);
-
-  const fallback = [...weekly].reverse().find((item) => item.totalPomodoros > 0 || item.completedTasks > 0);
-  const displayPomodoros = today && today.totalPomodoros > 0
-    ? today.totalPomodoros
-    : (fallback?.totalPomodoros ?? today?.totalPomodoros ?? 0);
-  const displayCompletedTasks = today && today.completedTasks > 0
-    ? today.completedTasks
-    : (fallback?.completedTasks ?? today?.completedTasks ?? 0);
 
   return (
     <Card>
@@ -26,14 +17,14 @@ export function DailyStatsCard() {
             <div className="flex flex-col items-center gap-1 p-3 rounded-lg bg-red-50 dark:bg-red-950">
               <Timer className="h-5 w-5 text-tomato" />
               <span data-testid="daily-stat-pomodoros" className="text-2xl font-bold tabular-nums">
-                {displayPomodoros}
+                {today.totalPomodoros}
               </span>
               <span className="text-xs text-gray-500">番茄数</span>
             </div>
             <div className="flex flex-col items-center gap-1 p-3 rounded-lg bg-green-50 dark:bg-green-950">
               <CheckCircle2 className="h-5 w-5 text-green-600" />
               <span data-testid="daily-stat-completed-tasks" className="text-2xl font-bold tabular-nums">
-                {displayCompletedTasks}
+                {today.completedTasks}
               </span>
               <span className="text-xs text-gray-500">完成任务</span>
             </div>
