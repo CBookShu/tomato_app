@@ -37,27 +37,15 @@ export function TaskGroupItem({ group, tasks }: TaskGroupItemProps) {
 
   const handleAddTask = async () => {
     const title = '新任务';
-    const task = {
-      id: crypto.randomUUID(),
-      title,
-      status: 'todo' as const,
-      groupId: group.id,
-      completedPomodoros: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    // Optimistic UI update
-    addTask(task);
-
-    // Persist to database
     try {
-      await invoke(IPC.TASK_CREATE, {
+      const createdTask = await invoke(IPC.TASK_CREATE, {
         input: {
           title,
           groupId: group.id,
         },
       });
+
+      addTask(createdTask);
     } catch (error) {
       console.error('Failed to create task:', error);
     }

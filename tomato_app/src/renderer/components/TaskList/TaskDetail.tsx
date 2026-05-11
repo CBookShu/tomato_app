@@ -42,6 +42,10 @@ export function TaskDetail() {
     }
   }, [task?.id, task?.notes]);
 
+  useEffect(() => {
+    setSaveError(null);
+  }, [task?.id]);
+
   const handleSaveNotes = useCallback(async () => {
     if (!task) return;
 
@@ -148,6 +152,17 @@ export function TaskDetail() {
           <span>🍅 已完成 {task.completedPomodoros} 个番茄</span>
           <span>📅 创建于 {new Date(task.createdAt).toLocaleDateString()}</span>
         </div>
+
+        {isSaving && (
+          <p data-testid="task-notes-saving" className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+            保存中...
+          </p>
+        )}
+        {saveError && (
+          <p data-testid="task-notes-save-error" className="text-sm text-red-500 mb-2">
+            {saveError}
+          </p>
+        )}
 
         <div className="flex-1 flex flex-col min-h-0 border-t border-gray-200 dark:border-gray-700 pt-4">
           <div className="flex-1 min-h-0" data-color-mode="auto">
