@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { IPC } from '@shared/ipc-channels.js';
 import { useSettingsStore } from '@/stores/settings-store.js';
+import { readSetting } from '@/lib/settings-keys.js';
 
 export function useSound() {
-  const soundEnabled = useSettingsStore((s) => s.settings['sound_enabled'] !== 'false');
+  const soundEnabled = useSettingsStore((s) => readSetting(s.settings, 'soundEnabled', 'true') !== 'false');
 
   useEffect(() => {
     const hasElectronAPI = typeof window !== 'undefined' && window.electronAPI;

@@ -4,6 +4,7 @@ import { useTaskStore } from '@/stores/task-store.js';
 import { useSettingsStore } from '@/stores/settings-store.js';
 import { useIpc } from './useIpc.js';
 import { IPC } from '@shared/ipc-channels.js';
+import { readSetting } from '@/lib/settings-keys.js';
 
 /**
  * 只提供 start 函数，不注册 IPC 监听器
@@ -15,7 +16,7 @@ export function useTimerStart() {
   const settings = useSettingsStore((s) => s.settings);
 
   const getPomodoroDuration = useCallback(() => {
-    const duration = parseInt(settings['pomodoro_duration'] || '25', 10);
+    const duration = parseInt(readSetting(settings, 'pomodoroDuration', '25'), 10);
     return duration * 60;
   }, [settings]);
 
