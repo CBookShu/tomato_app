@@ -243,7 +243,7 @@ export function registerIpcHandlers(
       if (isTimerSettingKey) {
         const parsedValue = parsePositiveIntOrNull(value);
         if (parsedValue === null) {
-          return false;
+          return;
         }
         (updates as Record<string, number>)[key] = parsedValue;
       } else if (BOOLEAN_SETTING_KEYS.includes(key as typeof BOOLEAN_SETTING_KEYS[number])) {
