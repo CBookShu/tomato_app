@@ -164,6 +164,15 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+      <Card className="border-blue-200/70 dark:border-blue-900/50">
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">数据同步</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SyncSettings />
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-medium">通知设置</CardTitle>
@@ -213,15 +222,6 @@ export function SettingsPage() {
               onCheckedChange={(v) => updateKey('autoStart', v ? 'true' : 'false')}
             />
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">数据同步</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SyncSettings />
         </CardContent>
       </Card>
 

@@ -1,14 +1,28 @@
+import { Button } from '@/components/ui/button.js';
 import { useSyncStore } from '@/stores/sync-store.js';
-import { IPC } from '@shared/ipc-channels.js';
 
 interface ConflictPromptProps {
   onClose?: () => void;
 }
 
+function formatTimestamp(value: string | null): string {
+  if (!value) return '暂无';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
 export function ConflictPrompt({ onClose }: ConflictPromptProps) {
   const status = useSyncStore((s) => s.status);
   const conflictBranch = useSyncStore((s) => s.conflictBranch);
-  const reset = useSyncStore((s) => s.reset);
+  const repositoryOwner = useSyncStore((s) => s.repositoryOwner);
+  const repositoryName = useSyncStore((s) => s.repositoryName);
+  const repositoryUrl = useSyncStore((s) => s.repositoryUrl);
+  const remoteBranch = useSyncStore((s) => s.remoteBranch);
+  const lastSyncTime = useSyncStore((s) => s.lastSyncTime);
+  const dataDir = useSyncStore((s) => s.dataDir);
+  const rollback = useSyncStore((s) => s.rollback);
+  const resolveConflict = useSyncStore((s) => s.resolveConflict);
 
   if (status !== 'conflict' || !conflictBranch) {
     return null;
@@ -16,55 +30,67 @@ export function ConflictPrompt({ onClose }: ConflictPromptProps) {
 
   const handleRollback = async () => {
     try {
-      await window.electronAPI.invoke(IPC.SYNC_ROLLBACK);
-      reset();
+      await rollback();
       onClose?.();
     } catch (error) {
       console.error('Rollback failed:', error);
     }
   };
 
-  const handleResolveManually = () => {
-    // 打开数据目录让用户手动处理
-    reset();
-    onClose?.();
+  const handleResolveManually = async () => {
+    try {
+      await resolveConflict();
+      onClose?.();
+    } catch (error) {
+      console.error('Conflict resolution failed:', error);
+    }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
-        <h2 className="text-lg font-semibold text-yellow-600 mb-2">
-          ⚠️ 同步冲突
-        </h2>
+  const repoLabel = repositoryOwner && repositoryName ? `${repositoryOwner}/${repositoryName}` : repositoryUrl || '未绑定仓库';
 
-        <p className="text-gray-600 mb-4">
-          检测到远程和本地数据冲突。本地状态已保存到备份分支：
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-900">
+        <h2 className="mb-2 text-lg font-semibold text-yellow-600">⚠️ 同步冲突</h2>
+
+        <p className="mb-4 text-gray-600 dark:text-gray-300">
+          {repoLabel} 在 <span className="font-medium">{remoteBranch || 'main'}</span> 上出现冲突。
+          本地状态已保存到备份分支，您可以先处理冲突再继续同步。
         </p>
 
-        <code className="block p-2 mb-4 text-sm bg-gray-100 rounded text-gray-800 break-all">
-          {conflictBranch}
-        </code>
+        <div className="space-y-2 rounded-md border border-gray-200 bg-gray-50 p-3 text-sm dark:border-gray-700 dark:bg-gray-800/60">
+          <div>
+            <span className="text-gray-500 dark:text-gray-400">冲突备份分支：</span>
+            <div className="font-mono text-gray-800 dark:text-gray-100">{conflictBranch}</div>
+          </div>
+          <div>
+            <span className="text-gray-500 dark:text-gray-400">最近同步：</span>
+            <div className="text-gray-800 dark:text-gray-100">{formatTimestamp(lastSyncTime)}</div>
+          </div>
+          {dataDir && (
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">数据目录：</span>
+              <div className="break-all font-mono text-gray-800 dark:text-gray-100">{dataDir}</div>
+            </div>
+          )}
+        </div>
 
-        <p className="text-gray-600 mb-6">请选择如何处理冲突：</p>
+        <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">
+          选择“回滚到远程版本”会丢弃本地冲突分支；选择“手动处理”则会尝试在您完成修改后继续同步。
+        </p>
 
-        <div className="space-y-3">
-          <button
-            onClick={handleRollback}
-            className="w-full px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-          >
+        <div className="mt-6 space-y-3">
+          <Button onClick={handleRollback} className="w-full">
             回滚到远程版本
-          </button>
+          </Button>
 
-          <button
-            onClick={handleResolveManually}
-            className="w-full px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 transition-colors"
-          >
-            手动处理（保留本地版本）
-          </button>
+          <Button onClick={handleResolveManually} variant="outline" className="w-full">
+            手动处理后继续同步
+          </Button>
         </div>
 
         <p className="mt-4 text-xs text-gray-400">
-          提示：手动处理需要您在数据目录中解决冲突后再同步
+          提示：如果您需要先编辑冲突文件，可以先保留此窗口，处理完成后再点击“手动处理后继续同步”。
         </p>
       </div>
     </div>
