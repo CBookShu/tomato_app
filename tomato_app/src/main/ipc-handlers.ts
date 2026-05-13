@@ -391,13 +391,19 @@ export function registerIpcHandlers(
     return syncService.logout();
   });
 
+  ipcMain.handle(IPC.SYNC_BIND_REPOSITORY, async (_event, payload: { repositoryUrl: string }) => {
+    return syncService.bindRepository(payload.repositoryUrl);
+  });
+
+  ipcMain.handle(IPC.SYNC_UNBIND_REPOSITORY, async () => {
+    return syncService.unbindRepository();
+  });
+
   ipcMain.handle(IPC.SYNC_GET_STATUS, async () => {
     return syncService.getStatus();
   });
 
   ipcMain.handle(IPC.SYNC_SYNC, async () => {
-    const dataDir = await syncService.getDataDir();
-    await syncService.initGit(dataDir);
     return syncService.sync();
   });
 

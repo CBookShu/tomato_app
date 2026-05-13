@@ -1,4 +1,4 @@
-import type { Task, TaskGroup, NewTask, NewTaskGroup, TaskStatus, SyncResult } from '@pomodoro/core';
+import type { Task, TaskGroup, NewTask, NewTaskGroup, TaskStatus, SyncResult, SyncStatus } from '@pomodoro/core';
 import type { DailyStats, MonthlyStats, TimerState } from '@pomodoro/core';
 
 // Data export/import types
@@ -73,6 +73,8 @@ export const IPC = {
   // Sync
   SYNC_LOGIN: 'sync:login',
   SYNC_LOGOUT: 'sync:logout',
+  SYNC_BIND_REPOSITORY: 'sync:bind-repository',
+  SYNC_UNBIND_REPOSITORY: 'sync:unbind-repository',
   SYNC_GET_STATUS: 'sync:get-status',
   SYNC_SYNC: 'sync:sync',
   SYNC_RESOLVE_CONFLICT: 'sync:resolve-conflict',
@@ -138,7 +140,26 @@ export interface IpcChannelMap {
   // Sync
   [IPC.SYNC_LOGIN]: { request: void; response: boolean };
   [IPC.SYNC_LOGOUT]: { request: void; response: void };
-  [IPC.SYNC_GET_STATUS]: { request: void; response: { isLoggedIn: boolean; syncStatus?: string } };
+  [IPC.SYNC_BIND_REPOSITORY]: { request: { repositoryUrl: string }; response: SyncResult };
+  [IPC.SYNC_UNBIND_REPOSITORY]: { request: void; response: void };
+  [IPC.SYNC_GET_STATUS]: {
+    request: void;
+    response: {
+      isLoggedIn: boolean;
+      isBound: boolean;
+      repositoryUrl: string | null;
+      repositoryOwner: string | null;
+      repositoryName: string | null;
+      remoteName: string | null;
+      remoteBranch: string | null;
+      boundAt: string | null;
+      updatedAt: string | null;
+      syncStatus: SyncStatus;
+      lastSyncTime: string | null;
+      error: string | null;
+      conflictBranch: string | null;
+    };
+  };
   [IPC.SYNC_SYNC]: { request: void; response: SyncResult };
   [IPC.SYNC_RESOLVE_CONFLICT]: { request: void; response: SyncResult };
   [IPC.SYNC_ROLLBACK]: { request: void; response: void };
@@ -161,12 +182,28 @@ declare global {
       ): Promise<IpcChannelMap[C]['response']>;
       on(channel: IpcEventChannel, callback: (...args: unknown[]) => void): () => void;
       sync: {
-        login: () => Promise<boolean>;
-        logout: () => Promise<void>;
-        getStatus: () => Promise<{ isLoggedIn: boolean; syncStatus?: string }>;
-        sync: () => Promise<SyncResult>;
-        resolveConflict: () => Promise<SyncResult>;
-        rollback: () => Promise<void>;
+      login: () => Promise<boolean>;
+      logout: () => Promise<void>;
+      bindRepository: (repositoryUrl: string) => Promise<SyncResult>;
+      unbindRepository: () => Promise<void>;
+      getStatus: () => Promise<{
+        isLoggedIn: boolean;
+        isBound: boolean;
+        repositoryUrl: string | null;
+        repositoryOwner: string | null;
+        repositoryName: string | null;
+        remoteName: string | null;
+        remoteBranch: string | null;
+        boundAt: string | null;
+        updatedAt: string | null;
+        syncStatus: SyncStatus;
+        lastSyncTime: string | null;
+        error: string | null;
+        conflictBranch: string | null;
+      }>;
+      sync: () => Promise<SyncResult>;
+      resolveConflict: () => Promise<SyncResult>;
+      rollback: () => Promise<void>;
         getDataDir: () => Promise<string>;
       };
     };

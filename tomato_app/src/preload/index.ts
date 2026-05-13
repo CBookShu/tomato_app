@@ -4,6 +4,8 @@ import { contextBridge, ipcRenderer } from 'electron';
 const SYNC = {
   LOGIN: 'sync:login',
   LOGOUT: 'sync:logout',
+  BIND_REPOSITORY: 'sync:bind-repository',
+  UNBIND_REPOSITORY: 'sync:unbind-repository',
   GET_STATUS: 'sync:get-status',
   SYNC: 'sync:sync',
   RESOLVE_CONFLICT: 'sync:resolve-conflict',
@@ -22,6 +24,8 @@ const api = {
   sync: {
     login: () => ipcRenderer.invoke(SYNC.LOGIN),
     logout: () => ipcRenderer.invoke(SYNC.LOGOUT),
+    bindRepository: (repositoryUrl: string) => ipcRenderer.invoke(SYNC.BIND_REPOSITORY, { repositoryUrl }),
+    unbindRepository: () => ipcRenderer.invoke(SYNC.UNBIND_REPOSITORY),
     getStatus: () => ipcRenderer.invoke(SYNC.GET_STATUS),
     sync: () => ipcRenderer.invoke(SYNC.SYNC),
     resolveConflict: () => ipcRenderer.invoke(SYNC.RESOLVE_CONFLICT),
