@@ -3,7 +3,6 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './tests/e2e',
   timeout: 120000, // Electron 启动较慢，增加到 2 分钟
-  workers: 1, // Electron E2E shares app-level state; keep serial for deterministic runs
   retries: 0, // 先不重试，方便诊断问题
   use: {
     // Electron 应用配置

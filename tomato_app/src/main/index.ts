@@ -64,11 +64,6 @@ app.whenReady().then(async () => {
       return { success: true };
     });
 
-    ipcMain.handle('test:fast-forward', async (_event, seconds: number) => {
-      // 发送时间加速事件到渲染进程
-      safeSend(mainWindow, 'test:fast-forward', seconds);
-      return { success: true };
-    });
   }
 }).catch((err) => {
   console.error('Failed to start app:', err);

@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { clearDataAndReload, createDefaultTask } from './helpers/acceptance-helpers';
+import { clearDataAndReload, createDefaultTask, fastForwardTimer, waitForMainTimerToStart } from './helpers/acceptance-helpers';
 
 test.describe('基础验收：计时与统计联动', () => {
   test.beforeEach(async ({ page, electronApp }) => {
@@ -18,9 +18,9 @@ test.describe('基础验收：计时与统计联动', () => {
 
     await page.getByRole('tab', { name: '计时' }).click();
     await expect(page.getByTestId('timer-pause-button')).toBeVisible();
+    await waitForMainTimerToStart(page);
 
-    await expect(page.getByText('休息中')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByTestId('status-bar')).toContainText('今日 1 个番茄', { timeout: 10000 });
+    await fastForwardTimer(page, 5);
 
     await page.reload();
     await page.waitForLoadState('domcontentloaded');

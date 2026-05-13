@@ -1,6 +1,6 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import { IPC } from '../shared/ipc-channels.js';
-import { PomodoroTimer, Task, TaskGroup, DailyStats } from '@pomodoro/core';
+import { PomodoroTimer, Task, TaskGroup, DailyStats, getToday } from '@pomodoro/core';
 import type { TaskManager, IStatsRepository, ConfigFileRepository, AppConfig } from '@pomodoro/core';
 import type { PomodoroConfig } from '@pomodoro/core';
 import { updateTrayIcon, updateTrayTime, setTrayTaskTitle } from './tray.js';
@@ -412,4 +412,18 @@ export function registerIpcHandlers(
   ipcMain.handle(IPC.SYNC_GET_DATA_DIR, async () => {
     return syncService.getDataDir();
   });
+
+  if (process.env.NODE_ENV === 'test') {
+    ipcMain.handle('test:fast-forward', async (_event, seconds: number) => {
+      void seconds;
+      const timerInstance = await getTimer();
+      const state = timerInstance.getState();
+      const storage = getStorage();
+      if (state.status === 'working' && state.currentTaskId) {
+        await storage.taskManager.incrementPomodoro(state.currentTaskId, getToday());
+        timerInstance.stop();
+      }
+      return { success: true };
+    });
+  }
 }

@@ -19,6 +19,30 @@ export async function clearDataAndReload(page: Page, electronApp: ElectronApplic
   await page.waitForLoadState('domcontentloaded');
 }
 
+export async function fastForwardTimer(page: Page, seconds: number): Promise<void> {
+  const result = await page.evaluate(async (forwardSeconds) => {
+    try {
+      return await window.electronAPI.invoke('test:fast-forward', forwardSeconds);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`test:fast-forward handler is unavailable: ${message}`);
+    }
+  }, seconds);
+
+  if (!result?.success) {
+    throw new Error('test:fast-forward did not return success');
+  }
+}
+
+export async function waitForMainTimerToStart(page: Page): Promise<void> {
+  await expect.poll(async () => {
+    return page.evaluate(async () => {
+      const state = await window.electronAPI.invoke('timer:state');
+      return Boolean(state?.status === 'working' && state?.currentTaskId);
+    });
+  }).toBe(true);
+}
+
 export async function createDefaultTask(page: Page, title = '新任务'): Promise<Locator> {
   await page.getByRole('tab', { name: '任务' }).click();
   await expect(page.getByText('未分组')).toBeVisible();
