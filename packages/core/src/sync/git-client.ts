@@ -17,7 +17,8 @@ export class GitClient {
   constructor(private baseDir: string, private options: GitClientOptions = {}) {
     this.remoteName = options.remoteName ?? 'origin';
     this.remoteBranch = options.remoteBranch ?? 'main';
-    this.git = simpleGit({ baseDir }).env(options.env ?? {});
+    const git = simpleGit({ baseDir });
+    this.git = options.env ? git.env({ ...process.env, ...options.env }) : git;
   }
 
   async init(): Promise<void> {
@@ -58,7 +59,7 @@ export class GitClient {
   }
 
   async createBranch(name: string): Promise<void> {
-    await this.git.branch([name]);
+    await this.git.checkoutLocalBranch(name);
   }
 
   async checkout(branch: string): Promise<void> {
@@ -89,12 +90,16 @@ export class GitClient {
     return match?.[1] ?? null;
   }
 
-  async pull(rebase: boolean = true): Promise<{ success: boolean; hasConflicts: boolean }> {
+  async pull(
+    rebase: boolean = true,
+    remote: string = this.remoteName,
+    branch: string = this.remoteBranch,
+  ): Promise<{ success: boolean; hasConflicts: boolean }> {
     try {
       if (rebase) {
-        await this.git.pull(this.remoteName, this.remoteBranch, ['--rebase']);
+        await this.git.pull(remote, branch, ['--rebase']);
       } else {
-        await this.git.pull(this.remoteName, this.remoteBranch);
+        await this.git.pull(remote, branch);
       }
       return { success: true, hasConflicts: false };
     } catch (error) {
@@ -106,8 +111,8 @@ export class GitClient {
     }
   }
 
-  async push(remote: string = this.remoteName): Promise<void> {
-    await this.git.push(remote, this.remoteBranch);
+  async push(remote: string = this.remoteName, branch: string = this.remoteBranch): Promise<void> {
+    await this.git.push(remote, branch);
   }
 
   async rebaseAbort(): Promise<void> {

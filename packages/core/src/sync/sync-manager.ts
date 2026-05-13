@@ -1,4 +1,5 @@
 // packages/core/src/sync/sync-manager.ts
+import { randomUUID } from 'node:crypto';
 import { GitClient } from './git-client.js';
 import { FileStorage } from '../storage/file-storage.js';
 import { SyncResult, SyncStatus } from './types.js';
@@ -29,7 +30,7 @@ export class SyncManager {
 
   async pullChanges(): Promise<SyncResult> {
     try {
-      const result = await this.git.pull(true);
+      const result = await this.git.pull(true, this.remoteName, this.remoteBranch);
 
       if (result.hasConflicts) {
         // Abort rebase and create backup branch
@@ -57,8 +58,8 @@ export class SyncManager {
   }
 
   async createBackupBranch(): Promise<string> {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const branchName = `local-backup-${timestamp}`;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const branchName = `local-backup-${timestamp}-${randomUUID().slice(0, 8)}`;
     await this.git.createBranch(branchName);
     return branchName;
   }
@@ -70,7 +71,8 @@ export class SyncManager {
 
   async pushChanges(): Promise<SyncResult> {
     try {
-      await this.git.push(this.remoteName);
+      const localBranch = await this.git.currentBranch();
+      await this.git.push(this.remoteName, `${localBranch}:${this.remoteBranch}`);
       return {
         success: true,
         status: 'synced',
@@ -105,28 +107,12 @@ export class SyncManager {
       return pullResult;
     }
 
-    // Push any remaining changes
-    if (await this.git.hasChanges()) {
-      await this.commitChanges();
-      return this.pushChanges();
-    }
-
-    return pullResult;
+    // Push the committed local state even if the working tree is clean.
+    return this.pushChanges();
   }
 
   async resolveConflictAndSync(): Promise<SyncResult> {
-    // Check if working tree is clean
-    const status = await this.git.status();
-    if (!status.isClean()) {
-      return {
-        success: false,
-        status: 'error',
-        error: 'Working tree has uncommitted changes',
-      };
-    }
-
-    // Try to push
-    return this.pushChanges();
+    return this.sync();
   }
 
   async getStatus(): Promise<{ isClean: boolean; ahead: number; behind: number }> {
