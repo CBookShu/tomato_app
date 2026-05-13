@@ -6,8 +6,17 @@ import { SyncResult, SyncStatus } from './types.js';
 export class SyncManager {
   constructor(
     private git: GitClient,
-    private storage: FileStorage
+    private storage: FileStorage,
+    private options: { remoteName?: string; remoteBranch?: string } = {},
   ) {}
+
+  private get remoteName(): string {
+    return this.options.remoteName ?? 'origin';
+  }
+
+  private get remoteBranch(): string {
+    return this.options.remoteBranch ?? 'main';
+  }
 
   async commitChanges(message?: string): Promise<void> {
     if (!(await this.git.hasChanges())) {
@@ -55,13 +64,13 @@ export class SyncManager {
   }
 
   async resetToRemote(): Promise<void> {
-    await this.git.fetch('origin');
-    await this.git.resetHard('origin/main');
+    await this.git.fetch(this.remoteName);
+    await this.git.resetHard(`${this.remoteName}/${this.remoteBranch}`);
   }
 
   async pushChanges(): Promise<SyncResult> {
     try {
-      await this.git.push('origin');
+      await this.git.push(this.remoteName);
       return {
         success: true,
         status: 'synced',

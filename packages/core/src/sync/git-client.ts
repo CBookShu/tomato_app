@@ -3,11 +3,21 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import simpleGit, { SimpleGit, StatusResult } from 'simple-git';
 
+export interface GitClientOptions {
+  remoteName?: string;
+  remoteBranch?: string;
+  env?: NodeJS.ProcessEnv;
+}
+
 export class GitClient {
   private git: SimpleGit;
+  private remoteName: string;
+  private remoteBranch: string;
 
-  constructor(private baseDir: string) {
-    this.git = simpleGit(baseDir);
+  constructor(private baseDir: string, private options: GitClientOptions = {}) {
+    this.remoteName = options.remoteName ?? 'origin';
+    this.remoteBranch = options.remoteBranch ?? 'main';
+    this.git = simpleGit({ baseDir }).env(options.env ?? {});
   }
 
   async init(): Promise<void> {
@@ -73,12 +83,18 @@ export class GitClient {
     await this.git.fetch(remote);
   }
 
+  async getRemoteDefaultBranch(remote: string = this.remoteName): Promise<string | null> {
+    const output = await this.git.raw(['ls-remote', '--symref', remote, 'HEAD']);
+    const match = output.match(/^ref:\s+refs\/heads\/([^\s]+)\s+HEAD/m);
+    return match?.[1] ?? null;
+  }
+
   async pull(rebase: boolean = true): Promise<{ success: boolean; hasConflicts: boolean }> {
     try {
       if (rebase) {
-        await this.git.pull('origin', 'main', ['--rebase']);
+        await this.git.pull(this.remoteName, this.remoteBranch, ['--rebase']);
       } else {
-        await this.git.pull('origin', 'main');
+        await this.git.pull(this.remoteName, this.remoteBranch);
       }
       return { success: true, hasConflicts: false };
     } catch (error) {
@@ -90,8 +106,8 @@ export class GitClient {
     }
   }
 
-  async push(remote: string = 'origin'): Promise<void> {
-    await this.git.push(remote, 'main');
+  async push(remote: string = this.remoteName): Promise<void> {
+    await this.git.push(remote, this.remoteBranch);
   }
 
   async rebaseAbort(): Promise<void> {
