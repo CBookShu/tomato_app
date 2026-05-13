@@ -120,9 +120,10 @@ flowchart TD
 - `boundAt`
 - `lastSyncTime`
 - `remoteName`
-- `localBranch`
+- `remoteBranch`
 
 其中 `repositoryOwner` 和 `repositoryName` 可以在用户输入完整 URL 后解析得到，便于后端初始化仓库时直接使用。
+`remoteBranch` 用于记录该仓库当前同步所使用的默认分支，例如 `main`。
 
 ### 状态机
 
@@ -149,13 +150,22 @@ flowchart TD
 - 写入 Git 配置
 - 绑定当前工作分支
 
+为了保持实现简单且和现有代码一致，第一版同步默认工作分支为 `main`。如果用户仓库的默认分支不是 `main`，绑定阶段需要检测并返回明确错误，提示用户先统一到 `main` 后再绑定。
+
 ### 远程绑定
 
 远程绑定只意味着把用户提供的 GitHub 仓库 URL 设置为 `origin`。设计上不引入额外的同步服务器或中间层。
 
 ### 认证
 
-OAuth 只负责拿到可用于 GitHub 仓库访问的凭证。后续 push / pull 仍然是标准 Git 操作，只是这些命令会使用保存下来的 GitHub 凭证。
+OAuth 只负责拿到可用于 GitHub 仓库访问的凭证。后续 push / pull 仍然是标准 Git 操作，只是这些命令会通过一个临时的 Git 凭证提供器使用保存下来的 GitHub 凭证。
+
+设计要求：
+
+- token 不写入 remote URL
+- token 不写入仓库配置文件
+- token 只在执行 git 命令时通过临时凭证提供器注入
+- 凭证提供器仅对 `github.com` 生效
 
 ## 首次同步
 
@@ -180,6 +190,8 @@ OAuth 只负责拿到可用于 GitHub 仓库访问的凭证。后续 push / pull
 5. 如果发生冲突，进入冲突保护流程
 
 这里不做“远端优先覆盖本地”或“本地优先覆盖远端”的自定义协议判断。Git 已经给出了标准合并结果，App 只负责在冲突时保护本地数据并把控制权交给用户。
+
+如果远端默认分支不是 `main`，绑定流程应在进入同步前检测出来并报错，而不是尝试偷偷改写分支名。
 
 ## 后端流程
 
@@ -226,6 +238,13 @@ OAuth 只负责拿到可用于 GitHub 仓库访问的凭证。后续 push / pull
 
 冲突态下，App 不会自动 `reset` 到远端，也不会自动丢弃本地改动。用户如果希望直接回到远端版本，需要显式选择回滚操作。
 
+冲突态下 UI 的固定动作只有两个：
+
+- `回滚到远程版本`
+- `手动处理（保留本地版本）`
+
+手动处理的含义是保留本地仓库现状，让用户自己进入数据目录解决冲突并再次同步。
+
 ## 失败与恢复
 
 - 如果 URL 不是 `https://github.com/<owner>/<repo>` 形式，直接阻止连接
@@ -235,6 +254,7 @@ OAuth 只负责拿到可用于 GitHub 仓库访问的凭证。后续 push / pull
 - 如果解绑时 token 删除失败，保留错误状态但不破坏现有绑定信息，避免半解绑
 - 如果 pull 过程中出现冲突，先创建备份分支再停止同步
 - 如果 remote 有历史数据，首次绑定不会覆盖远端历史
+- 如果远端默认分支不是 `main`，绑定阶段直接报错并提示用户先统一分支名
 
 ## 相关文件边界
 
@@ -251,6 +271,7 @@ OAuth 只负责拿到可用于 GitHub 仓库访问的凭证。后续 push / pull
 
 - `tomato_app/src/main/sync/repository-binding.ts`
 - `tomato_app/src/main/sync/github-repository.ts`
+- `tomato_app/src/main/sync/git-credentials.ts`
 - `tomato_app/src/renderer/components/Sync/RepositoryField.tsx`
 - `tomato_app/src/renderer/components/Sync/SyncBindingStatus.tsx`
 - `tomato_app/src/renderer/components/Sync/ConflictPrompt.tsx`
