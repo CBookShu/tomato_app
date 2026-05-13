@@ -1,5 +1,14 @@
 import { ElectronApplication, Locator, Page } from '@playwright/test';
 import { expect } from '../fixtures';
+import { IPC } from '../../../src/shared/ipc-channels.js';
+
+const RESET_SYNC_STATE = {
+  isLoggedIn: false,
+  isBound: false,
+  syncStatus: 'idle',
+  lastSyncTime: null,
+  conflictBranch: null,
+} as const;
 
 export async function clearDataAndReload(page: Page, electronApp: ElectronApplication): Promise<void> {
   void electronApp;
@@ -17,6 +26,51 @@ export async function clearDataAndReload(page: Page, electronApp: ElectronApplic
   }
   await page.reload();
   await page.waitForLoadState('domcontentloaded');
+
+  const resetResult = await page.evaluate(async ({ channel, payload }) => {
+    try {
+      return await window.electronAPI.invoke(channel as never, payload as never);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`test:seed-sync handler is unavailable: ${message}`);
+    }
+  }, { channel: IPC.TEST_SYNC_SEED, payload: RESET_SYNC_STATE });
+
+  if (!resetResult?.success) {
+    throw new Error('test:seed-sync did not return success');
+  }
+}
+
+export async function seedSyncBinding(
+  page: Page,
+  state: {
+    isLoggedIn?: boolean;
+    isBound?: boolean;
+    repositoryUrl?: string | null;
+    repositoryOwner?: string | null;
+    repositoryName?: string | null;
+    remoteName?: string | null;
+    remoteBranch?: string | null;
+    boundAt?: string | null;
+    updatedAt?: string | null;
+    syncStatus?: 'idle' | 'syncing' | 'synced' | 'conflict' | 'offline' | 'error';
+    lastSyncTime?: string | null;
+    error?: string | null;
+    conflictBranch?: string | null;
+  },
+): Promise<void> {
+  const result = await page.evaluate(async ({ channel, payload }) => {
+    try {
+      return await window.electronAPI.invoke(channel as never, payload as never);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`test:seed-sync handler is unavailable: ${message}`);
+    }
+  }, { channel: IPC.TEST_SYNC_SEED, payload: state });
+
+  if (!result?.success) {
+    throw new Error('test:seed-sync did not return success');
+  }
 }
 
 export async function fastForwardTimer(page: Page, seconds: number): Promise<void> {

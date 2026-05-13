@@ -420,6 +420,11 @@ export function registerIpcHandlers(
   });
 
   if (process.env.NODE_ENV === 'test') {
+    ipcMain.handle(IPC.TEST_SYNC_SEED, async (_event, payload: Parameters<SyncService['seedTestState']>[0]) => {
+      await syncService.seedTestState(payload);
+      return { success: true as const };
+    });
+
     ipcMain.handle('test:fast-forward', async (_event, seconds: number) => {
       void seconds;
       const timerInstance = await getTimer();

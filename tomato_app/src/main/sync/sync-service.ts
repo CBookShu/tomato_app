@@ -77,6 +77,7 @@ export class SyncService {
   private lastSyncTime: string | null = null;
   private lastError: string | null = null;
   private conflictBranch: string | null = null;
+  private testIsLoggedIn: boolean | null = null;
 
   constructor(private readonly deps: SyncServiceDeps = {}) {}
 
@@ -344,6 +345,7 @@ export class SyncService {
     this.lastSyncTime = null;
     this.lastError = null;
     this.conflictBranch = null;
+    this.testIsLoggedIn = false;
   }
 
   async sync(): Promise<SyncResult> {
@@ -416,10 +418,8 @@ export class SyncService {
   }
 
   async getStatus(): Promise<SyncServiceStatus> {
-    const [isLoggedIn, binding] = await Promise.all([
-      this.tokenStore.hasToken(),
-      this.ensureBindingLoaded(),
-    ]);
+    const binding = await this.ensureBindingLoaded();
+    const isLoggedIn = this.testIsLoggedIn ?? await this.tokenStore.hasToken();
 
     const syncState = this.syncManager ? await this.syncManager.getStatus() : null;
     const syncStatus: SyncStatus = this.syncStatus !== 'idle'
@@ -443,6 +443,51 @@ export class SyncService {
       error: this.lastError,
       conflictBranch: this.conflictBranch,
     };
+  }
+
+  async seedTestState(payload: {
+    isLoggedIn?: boolean;
+    isBound?: boolean;
+    repositoryUrl?: string | null;
+    repositoryOwner?: string | null;
+    repositoryName?: string | null;
+    remoteName?: string | null;
+    remoteBranch?: string | null;
+    boundAt?: string | null;
+    updatedAt?: string | null;
+    syncStatus?: SyncStatus;
+    lastSyncTime?: string | null;
+    error?: string | null;
+    conflictBranch?: string | null;
+  }): Promise<void> {
+    const isBound = payload.isBound ?? Boolean(payload.repositoryUrl);
+
+    this.testIsLoggedIn = payload.isLoggedIn ?? null;
+    this.syncStatus = payload.syncStatus ?? 'idle';
+    this.lastSyncTime = payload.lastSyncTime ?? null;
+    this.lastError = payload.error ?? null;
+    this.conflictBranch = payload.conflictBranch ?? null;
+    this.git = null;
+    this.syncManager = null;
+
+    if (!isBound || !payload.repositoryUrl || !payload.repositoryOwner || !payload.repositoryName) {
+      this.binding = null;
+      await this.bindingStore.clearBinding();
+      return;
+    }
+
+    const now = payload.updatedAt ?? payload.boundAt ?? new Date().toISOString();
+    this.binding = {
+      repositoryUrl: payload.repositoryUrl,
+      repositoryOwner: payload.repositoryOwner,
+      repositoryName: payload.repositoryName,
+      remoteName: (payload.remoteName ?? 'origin') as 'origin',
+      remoteBranch: payload.remoteBranch ?? 'main',
+      boundAt: payload.boundAt ?? now,
+      updatedAt: payload.updatedAt ?? now,
+    };
+
+    await this.bindingStore.saveBinding(this.binding);
   }
 
   async getDataDir(): Promise<string> {

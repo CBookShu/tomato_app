@@ -200,4 +200,44 @@ describe('SyncService', () => {
     expect(status.isLoggedIn).toBe(false);
     expect(status.isBound).toBe(false);
   });
+
+  test('seedTestState hydrates binding and conflict metadata for test-only flows', async () => {
+    const service = new SyncService({
+      bindingStore,
+      tokenStore,
+      gitFactory,
+      syncManagerFactory,
+      storage: {} as any,
+      dataDirProvider: () => '/tmp/tomato-data',
+    } as any);
+
+    service.seedTestState({
+      isLoggedIn: true,
+      isBound: true,
+      repositoryUrl: 'https://github.com/you/tomato-data',
+      repositoryOwner: 'you',
+      repositoryName: 'tomato-data',
+      remoteName: 'origin',
+      remoteBranch: 'main',
+      boundAt: '2026-05-14T08:00:00.000Z',
+      updatedAt: '2026-05-14T09:00:00.000Z',
+      syncStatus: 'conflict',
+      lastSyncTime: '2026-05-14T09:00:00.000Z',
+      conflictBranch: 'local-backup-20260514-090000-abc12345',
+    });
+
+    const status = await service.getStatus();
+
+    expect(status).toEqual(expect.objectContaining({
+      isLoggedIn: true,
+      isBound: true,
+      repositoryOwner: 'you',
+      repositoryName: 'tomato-data',
+      remoteName: 'origin',
+      remoteBranch: 'main',
+      syncStatus: 'conflict',
+      lastSyncTime: '2026-05-14T09:00:00.000Z',
+      conflictBranch: 'local-backup-20260514-090000-abc12345',
+    }));
+  });
 });

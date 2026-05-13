@@ -80,6 +80,7 @@ export const IPC = {
   SYNC_RESOLVE_CONFLICT: 'sync:resolve-conflict',
   SYNC_ROLLBACK: 'sync:rollback',
   SYNC_GET_DATA_DIR: 'sync:get-data-dir',
+  TEST_SYNC_SEED: 'test:seed-sync',
 } as const;
 
 // Request/Response type pairs for each channel
@@ -164,6 +165,24 @@ export interface IpcChannelMap {
   [IPC.SYNC_RESOLVE_CONFLICT]: { request: void; response: SyncResult };
   [IPC.SYNC_ROLLBACK]: { request: void; response: void };
   [IPC.SYNC_GET_DATA_DIR]: { request: void; response: string };
+  [IPC.TEST_SYNC_SEED]: {
+    request: {
+      isLoggedIn?: boolean;
+      isBound?: boolean;
+      repositoryUrl?: string | null;
+      repositoryOwner?: string | null;
+      repositoryName?: string | null;
+      remoteName?: string | null;
+      remoteBranch?: string | null;
+      boundAt?: string | null;
+      updatedAt?: string | null;
+      syncStatus?: SyncStatus;
+      lastSyncTime?: string | null;
+      error?: string | null;
+      conflictBranch?: string | null;
+    };
+    response: { success: true };
+  };
 }
 
 export type IpcEventChannel =
