@@ -1,11 +1,18 @@
 import { test, expect } from './fixtures';
 import { clearDataAndReload } from './helpers/acceptance-helpers';
 import { IPC } from '../../src/shared/ipc-channels.js';
+import type { Page } from '@playwright/test';
 
 test.describe('基础验收：设置持久化', () => {
   test.beforeEach(async ({ page, electronApp }) => {
     await clearDataAndReload(page, electronApp);
   });
+
+  async function readSettings(page: Page) {
+    return page.evaluate(async ({ settingsGetAllChannel }) => {
+      return window.electronAPI.invoke(settingsGetAllChannel);
+    }, { settingsGetAllChannel: IPC.SETTINGS_GET_ALL });
+  }
 
   test('修改番茄时长与暗色模式后，刷新应保留', async ({ page }) => {
     await page.getByRole('tab', { name: '设置' }).click();
@@ -20,6 +27,10 @@ test.describe('基础验收：设置持久化', () => {
       await darkModeCheckbox.locator('..').click();
     }
     await expect(page.locator('html')).toHaveClass(/dark/);
+    await expect.poll(async () => {
+      const persisted = await readSettings(page);
+      return persisted.pomodoroDuration;
+    }).toBe('30');
 
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
@@ -31,9 +42,7 @@ test.describe('基础验收：设置持久化', () => {
     await expect(darkModeSettingAfterReload.locator('input[type="checkbox"]')).toBeChecked();
     await expect(page.locator('html')).toHaveClass(/dark/);
 
-    const persistedSettings = await page.evaluate(async ({ settingsGetAllChannel }) => {
-      return window.electronAPI.invoke(settingsGetAllChannel);
-    }, { settingsGetAllChannel: IPC.SETTINGS_GET_ALL });
+    const persistedSettings = await readSettings(page);
     expect(persistedSettings.pomodoroDuration).toBe('30');
   });
 
@@ -52,14 +61,23 @@ test.describe('基础验收：设置持久化', () => {
     await expect(pomodoroInput).toHaveValue('31');
 
     await pomodoroInput.fill('32');
+    await expect.poll(async () => {
+      const persisted = await readSettings(page);
+      return {
+        pomodoroDuration: persisted.pomodoroDuration,
+        pomodoro_duration: persisted.pomodoro_duration ?? null,
+      };
+    }).toEqual({
+      pomodoroDuration: '32',
+      pomodoro_duration: null,
+    });
+
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
     await page.getByRole('tab', { name: '设置' }).click();
     await expect(page.getByText('番茄时长 (分钟)').locator('..').getByRole('spinbutton')).toHaveValue('32');
 
-    const persistedSettings = await page.evaluate(async ({ settingsGetAllChannel }) => {
-      return window.electronAPI.invoke(settingsGetAllChannel);
-    }, { settingsGetAllChannel: IPC.SETTINGS_GET_ALL });
+    const persistedSettings = await readSettings(page);
     expect(persistedSettings.pomodoroDuration).toBe('32');
     expect(persistedSettings.pomodoro_duration).toBeUndefined();
   });

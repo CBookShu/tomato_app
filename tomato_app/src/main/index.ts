@@ -55,6 +55,7 @@ app.whenReady().then(async () => {
 
     ipcMain.handle('test:clear-database', async () => {
       await clearDatabase();
+      await taskManager.initialize();
       return { success: true };
     });
 

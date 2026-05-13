@@ -44,7 +44,6 @@ export function SyncStatus() {
       {status !== 'syncing' && (
         <button
           onClick={handleSync}
-          disabled={status === 'syncing'}
           className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           同步

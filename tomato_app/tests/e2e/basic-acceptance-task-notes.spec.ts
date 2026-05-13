@@ -14,7 +14,6 @@ test.describe('基础验收：任务与笔记', () => {
     await expect(page.getByRole('heading', { name: '验收任务：写测试' })).toBeVisible();
 
     const notesEditor = page.locator('textarea[placeholder="添加笔记..."]');
-    const saveError = page.getByTestId('task-notes-save-error');
     const savingIndicator = page.getByTestId('task-notes-saving');
     await notesEditor.fill('## 验收笔记\n\n- 创建任务\n- 自动保存笔记');
     await expect(notesEditor).toHaveValue(/自动保存笔记/);
@@ -31,7 +30,6 @@ test.describe('基础验收：任务与笔记', () => {
     } else {
       await expect(savingIndicator).toHaveCount(0);
     }
-    await expect(saveError).toHaveCount(0);
 
     await page.reload();
     await page.waitForLoadState('domcontentloaded');

@@ -30,7 +30,7 @@ export function AppShell({
         <Sidebar activeTab={activeTab} onTabChange={onTabChange} />
 
         {/* 内容区域 */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-y-auto">
           {children}
         </div>
       </div>

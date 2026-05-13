@@ -8,6 +8,7 @@ import { IPC } from '@shared/ipc-channels.js';
 import MDEditor from '@uiw/react-md-editor';
 import { useDebounce } from '@/hooks/useDebounce.js';
 import { useTimerStore } from '@/stores/timer-store.js';
+import { normalizeTaskNotes, shouldAutoSaveNotes } from '@/lib/task-notes.js';
 
 const AUTO_SAVE_DELAY_MS = 500;
 
@@ -37,49 +38,48 @@ export function TaskDetail() {
   // Sync notes with selected task
   useEffect(() => {
     if (task) {
-      setNotes(task.notes || '');
-      setLastSavedNotes(task.notes || '');
+      const currentNotes = normalizeTaskNotes(task.notes);
+      setNotes(currentNotes);
+      setLastSavedNotes(currentNotes);
+      return;
     }
-  }, [task?.id, task?.notes]);
+    setNotes('');
+    setLastSavedNotes(null);
+  }, [task?.id]);
 
   useEffect(() => {
     setSaveError(null);
   }, [task?.id]);
 
-  const handleSaveNotes = useCallback(async () => {
-    if (!task) return;
-
+  const handleSaveNotes = useCallback(async (taskId: string, value: string) => {
     setIsSaving(true);
     setSaveError(null);
     try {
       // Optimistic UI update
-      updateTask(task.id, { notes });
+      updateTask(taskId, { notes: value });
 
       // Persist to database
       await invoke(IPC.TASK_EDIT, {
-        id: task.id,
-        updates: { notes },
+        id: taskId,
+        updates: { notes: value },
       });
 
-      setLastSavedNotes(notes);
+      setLastSavedNotes(value);
     } catch (error) {
       console.error('Failed to save notes:', error);
       setSaveError('保存失败');
     } finally {
       setIsSaving(false);
     }
-  }, [task, notes, updateTask, invoke]);
+  }, [updateTask, invoke]);
 
   // Auto-save when debounced notes change
   useEffect(() => {
-    if (
-      debouncedNotes !== lastSavedNotes &&
-      task &&
-      lastSavedNotes !== null
-    ) {
-      handleSaveNotes();
+    if (!shouldAutoSaveNotes(task?.id, lastSavedNotes, debouncedNotes)) {
+      return;
     }
-  }, [debouncedNotes, lastSavedNotes, task, handleSaveNotes]);
+    void handleSaveNotes(task!.id, debouncedNotes);
+  }, [debouncedNotes, lastSavedNotes, task?.id, handleSaveNotes]);
 
   if (!task) {
     return (

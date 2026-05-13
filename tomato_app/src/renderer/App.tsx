@@ -127,7 +127,7 @@ export default function App() {
         );
       case 'settings':
         return (
-          <div className="flex-1 flex justify-center">
+          <div className="flex-1 flex justify-center overflow-y-auto">
             <SettingsPage />
           </div>
         );

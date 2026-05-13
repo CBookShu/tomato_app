@@ -94,7 +94,7 @@ export interface IpcChannelMap {
   [IPC.TASK_GET]: { request: { id: string }; response: Task | null };
   [IPC.TASK_GET_ALL]: { request: void; response: Task[] };
   [IPC.TASK_GET_BY_STATUS]: { request: { status: TaskStatus }; response: Task[] };
-  [IPC.TASK_EDIT]: { request: { id: string; updates: Partial<Pick<Task, 'title' | 'description' | 'tags' | 'notes'>> }; response: Task };
+  [IPC.TASK_EDIT]: { request: { id: string; updates: Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>> }; response: Task };
   [IPC.TASK_COMPLETE]: { request: { id: string }; response: Task };
   [IPC.TASK_DELETE]: { request: { id: string }; response: void };
   [IPC.TASK_MOVE_TO_GROUP]: { request: { taskId: string; newGroupId: string }; response: Task };
