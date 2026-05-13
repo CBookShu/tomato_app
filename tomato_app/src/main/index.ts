@@ -10,6 +10,11 @@ import { IPC } from '../shared/ipc-channels.js';
 
 let mainWindow: BrowserWindow | null = null;
 
+const testUserDataDir = process.env.NODE_ENV === 'test' ? process.env.TEST_E2E_USER_DATA_DIR : undefined;
+if (testUserDataDir) {
+  app.setPath('userData', testUserDataDir);
+}
+
 function setupNotificationPermissions() {
   session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
     if (permission === 'notifications') {

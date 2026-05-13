@@ -20,6 +20,7 @@ test.describe('基础验收：计时与统计联动', () => {
     await expect(page.getByTestId('timer-pause-button')).toBeVisible();
 
     await expect(page.getByText('休息中')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('status-bar')).toContainText('今日 1 个番茄', { timeout: 10000 });
 
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
