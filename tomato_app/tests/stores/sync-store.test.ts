@@ -2,8 +2,6 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { useSyncStore } from '../../src/renderer/stores/sync-store.js';
 
 const createSyncApi = () => ({
-  login: vi.fn(),
-  logout: vi.fn(),
   bindRepository: vi.fn(),
   unbindRepository: vi.fn(),
   getStatus: vi.fn(),
@@ -14,12 +12,9 @@ const createSyncApi = () => ({
 });
 
 const baseStatus = {
-  isLoggedIn: false,
   isBound: false,
   repositoryUrl: null,
-  repositoryOwner: null,
-  repositoryName: null,
-  remoteName: null,
+  remoteLabel: null,
   remoteBranch: null,
   boundAt: null,
   updatedAt: null,
@@ -41,12 +36,9 @@ describe('syncStore', () => {
 
     useSyncStore.setState({
       status: 'idle',
-      isLoggedIn: false,
       isBound: false,
       repositoryUrl: null,
-      repositoryOwner: null,
-      repositoryName: null,
-      remoteName: null,
+      remoteLabel: null,
       remoteBranch: null,
       boundAt: null,
       updatedAt: null,
@@ -62,12 +54,9 @@ describe('syncStore', () => {
   test('getStatus hydrates binding metadata and sync state', async () => {
     syncApi.getStatus.mockResolvedValue({
       ...baseStatus,
-      isLoggedIn: true,
       isBound: true,
-      repositoryUrl: 'https://github.com/you/tomato-data',
-      repositoryOwner: 'you',
-      repositoryName: 'tomato-data',
-      remoteName: 'origin',
+      repositoryUrl: 'https://example.com/team/tomato.git',
+      remoteLabel: 'https://example.com/team/tomato.git',
       remoteBranch: 'main',
       boundAt: '2026-05-13T12:00:00.000Z',
       updatedAt: '2026-05-13T12:10:00.000Z',
@@ -79,12 +68,9 @@ describe('syncStore', () => {
 
     expect(syncApi.getStatus).toHaveBeenCalledTimes(1);
     expect(useSyncStore.getState()).toMatchObject({
-      isLoggedIn: true,
       isBound: true,
-      repositoryUrl: 'https://github.com/you/tomato-data',
-      repositoryOwner: 'you',
-      repositoryName: 'tomato-data',
-      remoteName: 'origin',
+      repositoryUrl: 'https://example.com/team/tomato.git',
+      remoteLabel: 'https://example.com/team/tomato.git',
       remoteBranch: 'main',
       boundAt: '2026-05-13T12:00:00.000Z',
       updatedAt: '2026-05-13T12:10:00.000Z',
@@ -93,16 +79,13 @@ describe('syncStore', () => {
     });
   });
 
-  test('bindRepository refreshes state after binding succeeds', async () => {
+  test('bindRepository forwards remote url and branch', async () => {
     syncApi.bindRepository.mockResolvedValue({ success: true, status: 'synced' });
     syncApi.getStatus.mockResolvedValue({
       ...baseStatus,
-      isLoggedIn: true,
       isBound: true,
-      repositoryUrl: 'https://github.com/you/tomato-data',
-      repositoryOwner: 'you',
-      repositoryName: 'tomato-data',
-      remoteName: 'origin',
+      repositoryUrl: 'https://example.com/team/tomato.git',
+      remoteLabel: 'https://example.com/team/tomato.git',
       remoteBranch: 'main',
       boundAt: '2026-05-13T12:00:00.000Z',
       updatedAt: '2026-05-13T12:15:00.000Z',
@@ -110,22 +93,23 @@ describe('syncStore', () => {
       lastSyncTime: '2026-05-13T12:15:00.000Z',
     });
 
-    await useSyncStore.getState().bindRepository('https://github.com/you/tomato-data');
+    await useSyncStore.getState().bindRepository('https://example.com/team/tomato.git', 'main');
 
-    expect(syncApi.bindRepository).toHaveBeenCalledWith('https://github.com/you/tomato-data');
-    expect(useSyncStore.getState().isBound).toBe(true);
-    expect(useSyncStore.getState().repositoryName).toBe('tomato-data');
-    expect(useSyncStore.getState().lastSyncTime).toBe('2026-05-13T12:15:00.000Z');
+    expect(syncApi.bindRepository).toHaveBeenCalledWith('https://example.com/team/tomato.git', 'main');
+    expect(useSyncStore.getState()).toMatchObject({
+      isBound: true,
+      repositoryUrl: 'https://example.com/team/tomato.git',
+      remoteLabel: 'https://example.com/team/tomato.git',
+      remoteBranch: 'main',
+      lastSyncTime: '2026-05-13T12:15:00.000Z',
+    });
   });
 
   test('unbindRepository clears binding state but preserves the data directory', async () => {
     useSyncStore.setState({
-      isLoggedIn: true,
       isBound: true,
-      repositoryUrl: 'https://github.com/you/tomato-data',
-      repositoryOwner: 'you',
-      repositoryName: 'tomato-data',
-      remoteName: 'origin',
+      repositoryUrl: 'https://example.com/team/tomato.git',
+      remoteLabel: 'https://example.com/team/tomato.git',
       remoteBranch: 'main',
       boundAt: '2026-05-13T12:00:00.000Z',
       updatedAt: '2026-05-13T12:15:00.000Z',
@@ -141,12 +125,9 @@ describe('syncStore', () => {
 
     expect(syncApi.unbindRepository).toHaveBeenCalledTimes(1);
     expect(useSyncStore.getState()).toMatchObject({
-      isLoggedIn: false,
       isBound: false,
       repositoryUrl: null,
-      repositoryOwner: null,
-      repositoryName: null,
-      remoteName: null,
+      remoteLabel: null,
       remoteBranch: null,
       boundAt: null,
       updatedAt: null,
@@ -194,12 +175,9 @@ describe('syncStore', () => {
     syncApi.rollback.mockResolvedValue(undefined);
     syncApi.getStatus.mockResolvedValue({
       ...baseStatus,
-      isLoggedIn: true,
       isBound: true,
-      repositoryUrl: 'https://github.com/you/tomato-data',
-      repositoryOwner: 'you',
-      repositoryName: 'tomato-data',
-      remoteName: 'origin',
+      repositoryUrl: 'https://example.com/team/tomato.git',
+      remoteLabel: 'https://example.com/team/tomato.git',
       remoteBranch: 'main',
       boundAt: '2026-05-13T12:00:00.000Z',
       updatedAt: '2026-05-13T12:31:00.000Z',
@@ -220,7 +198,8 @@ describe('syncStore', () => {
       status: 'synced',
       conflictBranch: null,
       isBound: true,
-      repositoryName: 'tomato-data',
+      repositoryUrl: 'https://example.com/team/tomato.git',
+      remoteBranch: 'main',
     });
   });
 

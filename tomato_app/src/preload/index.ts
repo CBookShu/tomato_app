@@ -2,8 +2,6 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 // Sync channel constants (duplicated to avoid import issues)
 const SYNC = {
-  LOGIN: 'sync:login',
-  LOGOUT: 'sync:logout',
   BIND_REPOSITORY: 'sync:bind-repository',
   UNBIND_REPOSITORY: 'sync:unbind-repository',
   GET_STATUS: 'sync:get-status',
@@ -22,9 +20,8 @@ const api = {
   },
   // Sync-specific API for convenience
   sync: {
-    login: () => ipcRenderer.invoke(SYNC.LOGIN),
-    logout: () => ipcRenderer.invoke(SYNC.LOGOUT),
-    bindRepository: (repositoryUrl: string) => ipcRenderer.invoke(SYNC.BIND_REPOSITORY, { repositoryUrl }),
+    bindRepository: (remoteUrl: string, remoteBranch: string) =>
+      ipcRenderer.invoke(SYNC.BIND_REPOSITORY, { remoteUrl, remoteBranch }),
     unbindRepository: () => ipcRenderer.invoke(SYNC.UNBIND_REPOSITORY),
     getStatus: () => ipcRenderer.invoke(SYNC.GET_STATUS),
     sync: () => ipcRenderer.invoke(SYNC.SYNC),

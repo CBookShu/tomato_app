@@ -71,8 +71,6 @@ export const IPC = {
   PLAY_SOUND: 'play-sound',
 
   // Sync
-  SYNC_LOGIN: 'sync:login',
-  SYNC_LOGOUT: 'sync:logout',
   SYNC_BIND_REPOSITORY: 'sync:bind-repository',
   SYNC_UNBIND_REPOSITORY: 'sync:unbind-repository',
   SYNC_GET_STATUS: 'sync:get-status',
@@ -139,9 +137,7 @@ export interface IpcChannelMap {
   [IPC.TRAY_SKIP_BREAK]: { request: void; response: void };
 
   // Sync
-  [IPC.SYNC_LOGIN]: { request: void; response: boolean };
-  [IPC.SYNC_LOGOUT]: { request: void; response: void };
-  [IPC.SYNC_BIND_REPOSITORY]: { request: { repositoryUrl: string }; response: SyncResult };
+  [IPC.SYNC_BIND_REPOSITORY]: { request: { remoteUrl: string; remoteBranch: string }; response: SyncResult };
   [IPC.SYNC_UNBIND_REPOSITORY]: { request: void; response: void };
   [IPC.SYNC_GET_STATUS]: {
     request: void;
@@ -201,28 +197,26 @@ declare global {
       ): Promise<IpcChannelMap[C]['response']>;
       on(channel: IpcEventChannel, callback: (...args: unknown[]) => void): () => void;
       sync: {
-      login: () => Promise<boolean>;
-      logout: () => Promise<void>;
-      bindRepository: (repositoryUrl: string) => Promise<SyncResult>;
-      unbindRepository: () => Promise<void>;
-      getStatus: () => Promise<{
-        isLoggedIn: boolean;
-        isBound: boolean;
-        repositoryUrl: string | null;
-        repositoryOwner: string | null;
-        repositoryName: string | null;
-        remoteName: string | null;
-        remoteBranch: string | null;
-        boundAt: string | null;
-        updatedAt: string | null;
-        syncStatus: SyncStatus;
-        lastSyncTime: string | null;
-        error: string | null;
-        conflictBranch: string | null;
-      }>;
-      sync: () => Promise<SyncResult>;
-      resolveConflict: () => Promise<SyncResult>;
-      rollback: () => Promise<void>;
+        bindRepository: (remoteUrl: string, remoteBranch: string) => Promise<SyncResult>;
+        unbindRepository: () => Promise<void>;
+        getStatus: () => Promise<{
+          isLoggedIn: boolean;
+          isBound: boolean;
+          repositoryUrl: string | null;
+          repositoryOwner: string | null;
+          repositoryName: string | null;
+          remoteName: string | null;
+          remoteBranch: string | null;
+          boundAt: string | null;
+          updatedAt: string | null;
+          syncStatus: SyncStatus;
+          lastSyncTime: string | null;
+          error: string | null;
+          conflictBranch: string | null;
+        }>;
+        sync: () => Promise<SyncResult>;
+        resolveConflict: () => Promise<SyncResult>;
+        rollback: () => Promise<void>;
         getDataDir: () => Promise<string>;
       };
     };

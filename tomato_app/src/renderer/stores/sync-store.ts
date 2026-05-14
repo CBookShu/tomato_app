@@ -3,12 +3,9 @@ import type { SyncResult, SyncStatus } from '@pomodoro/core';
 
 interface SyncState {
   status: SyncStatus;
-  isLoggedIn: boolean;
   isBound: boolean;
   repositoryUrl: string | null;
-  repositoryOwner: string | null;
-  repositoryName: string | null;
-  remoteName: string | null;
+  remoteLabel: string | null;
   remoteBranch: string | null;
   boundAt: string | null;
   updatedAt: string | null;
@@ -19,12 +16,9 @@ interface SyncState {
 }
 
 interface SyncStatusSnapshot {
-  isLoggedIn: boolean;
   isBound: boolean;
   repositoryUrl: string | null;
-  repositoryOwner: string | null;
-  repositoryName: string | null;
-  remoteName: string | null;
+  remoteLabel?: string | null;
   remoteBranch: string | null;
   boundAt: string | null;
   updatedAt: string | null;
@@ -35,9 +29,7 @@ interface SyncStatusSnapshot {
 }
 
 interface SyncActions {
-  login: () => Promise<void>;
-  logout: () => Promise<void>;
-  bindRepository: (repositoryUrl: string) => Promise<SyncResult>;
+  bindRepository: (repositoryUrl: string, remoteBranch: string) => Promise<SyncResult>;
   unbindRepository: () => Promise<void>;
   sync: () => Promise<SyncResult>;
   resolveConflict: () => Promise<SyncResult>;
@@ -49,12 +41,9 @@ interface SyncActions {
 
 const initialState: SyncState = {
   status: 'idle',
-  isLoggedIn: false,
   isBound: false,
   repositoryUrl: null,
-  repositoryOwner: null,
-  repositoryName: null,
-  remoteName: null,
+  remoteLabel: null,
   remoteBranch: null,
   boundAt: null,
   updatedAt: null,
@@ -74,12 +63,9 @@ function getSyncBridge() {
 
 function buildStateFromSnapshot(snapshot: SyncStatusSnapshot): Partial<SyncState> {
   return {
-    isLoggedIn: snapshot.isLoggedIn,
     isBound: snapshot.isBound,
     repositoryUrl: snapshot.repositoryUrl,
-    repositoryOwner: snapshot.repositoryOwner,
-    repositoryName: snapshot.repositoryName,
-    remoteName: snapshot.remoteName,
+    remoteLabel: snapshot.remoteLabel ?? snapshot.repositoryUrl,
     remoteBranch: snapshot.remoteBranch,
     boundAt: snapshot.boundAt,
     updatedAt: snapshot.updatedAt,
@@ -100,30 +86,10 @@ function preserveDataDir(state: SyncState): SyncState {
 export const useSyncStore = create<SyncState & SyncActions>((set, get) => ({
   ...initialState,
 
-  login: async () => {
+  bindRepository: async (repositoryUrl: string, remoteBranch: string) => {
     try {
       set({ status: 'syncing', error: null });
-      await getSyncBridge().login();
-      await get().getStatus();
-    } catch (error) {
-      set({ status: 'error', error: (error as Error).message });
-      throw error;
-    }
-  },
-
-  logout: async () => {
-    try {
-      await getSyncBridge().logout();
-      set((state) => preserveDataDir(state));
-    } catch (error) {
-      set({ error: (error as Error).message });
-    }
-  },
-
-  bindRepository: async (repositoryUrl: string) => {
-    try {
-      set({ status: 'syncing', error: null });
-      const result: SyncResult = await getSyncBridge().bindRepository(repositoryUrl);
+      const result: SyncResult = await getSyncBridge().bindRepository(repositoryUrl, remoteBranch);
 
       if (result.success) {
         await get().getStatus();

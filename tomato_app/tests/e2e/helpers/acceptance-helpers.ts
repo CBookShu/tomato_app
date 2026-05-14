@@ -3,10 +3,14 @@ import { expect } from '../fixtures';
 import { IPC } from '../../../src/shared/ipc-channels.js';
 
 const RESET_SYNC_STATE = {
-  isLoggedIn: false,
-  isBound: false,
+  repositoryUrl: null,
+  remoteLabel: null,
+  remoteBranch: null,
+  boundAt: null,
+  updatedAt: null,
   syncStatus: 'idle',
   lastSyncTime: null,
+  error: null,
   conflictBranch: null,
 } as const;
 
@@ -44,12 +48,8 @@ export async function clearDataAndReload(page: Page, electronApp: ElectronApplic
 export async function seedSyncBinding(
   page: Page,
   state: {
-    isLoggedIn?: boolean;
-    isBound?: boolean;
     repositoryUrl?: string | null;
-    repositoryOwner?: string | null;
-    repositoryName?: string | null;
-    remoteName?: string | null;
+    remoteLabel?: string | null;
     remoteBranch?: string | null;
     boundAt?: string | null;
     updatedAt?: string | null;

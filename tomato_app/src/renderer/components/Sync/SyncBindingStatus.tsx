@@ -2,14 +2,6 @@ import { Button } from '@/components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.js';
 import { useSyncStore } from '@/stores/sync-store.js';
 
-interface SyncBindingStatusProps {
-  isLoggedIn: boolean;
-  isBound: boolean;
-  onLogin: () => void;
-  onLogout: () => void;
-  onUnbind: () => void;
-}
-
 function formatTimestamp(value: string | null): string {
   if (!value) return '暂无';
 
@@ -19,19 +11,26 @@ function formatTimestamp(value: string | null): string {
   return date.toLocaleString();
 }
 
-export function SyncBindingStatus({ isLoggedIn, isBound, onLogin, onLogout, onUnbind }: SyncBindingStatusProps) {
+export function SyncBindingStatus() {
+  const isBound = useSyncStore((s) => s.isBound);
   const repositoryUrl = useSyncStore((s) => s.repositoryUrl);
-  const repositoryOwner = useSyncStore((s) => s.repositoryOwner);
-  const repositoryName = useSyncStore((s) => s.repositoryName);
-  const remoteName = useSyncStore((s) => s.remoteName);
+  const remoteLabel = useSyncStore((s) => s.remoteLabel);
   const remoteBranch = useSyncStore((s) => s.remoteBranch);
   const boundAt = useSyncStore((s) => s.boundAt);
   const updatedAt = useSyncStore((s) => s.updatedAt);
   const lastSyncTime = useSyncStore((s) => s.lastSyncTime);
   const conflictBranch = useSyncStore((s) => s.conflictBranch);
+  const unbindRepository = useSyncStore((s) => s.unbindRepository);
 
-  const repoLabel = repositoryOwner && repositoryName ? `${repositoryOwner}/${repositoryName}` : '未绑定仓库';
-  const remoteLabel = remoteName && remoteBranch ? `${remoteName}/${remoteBranch}` : '未配置远程';
+  const remoteDisplay = remoteLabel || repositoryUrl || '未配置远程';
+
+  const handleUnbind = async () => {
+    try {
+      await unbindRepository();
+    } catch {
+      // Error is already stored for display.
+    }
+  };
 
   return (
     <Card className="border-dashed">
@@ -40,51 +39,37 @@ export function SyncBindingStatus({ isLoggedIn, isBound, onLogin, onLogout, onUn
           <div className="space-y-1">
             <CardTitle className="text-sm font-medium">绑定状态</CardTitle>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              这里展示当前 GitHub 绑定、同步分支和最近一次同步时间。
+              这里展示当前远程地址、目标分支和最近一次同步时间。
             </p>
           </div>
 
-          <div className="flex flex-wrap justify-end gap-2">
-            {!isLoggedIn ? (
-              <Button size="sm" onClick={onLogin}>
-                登录 GitHub
-              </Button>
-            ) : (
-              <Button size="sm" variant="outline" onClick={onLogout}>
-                登出
-              </Button>
-            )}
-
-            {isBound && (
-              <Button size="sm" variant="destructive" onClick={onUnbind}>
-                解绑仓库
-              </Button>
-            )}
-          </div>
+          {isBound && (
+            <Button size="sm" variant="destructive" onClick={handleUnbind}>
+              解绑
+            </Button>
+          )}
         </div>
       </CardHeader>
 
       <CardContent className="space-y-3">
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span className={`rounded-full px-2 py-1 ${isLoggedIn ? 'bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}`}>
-            {isLoggedIn ? '已登录' : '未登录'}
-          </span>
-          <span className={`rounded-full px-2 py-1 ${isBound ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}`}>
+          <span
+            className={`rounded-full px-2 py-1 ${
+              isBound
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300'
+                : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
+            }`}
+          >
             {isBound ? '已绑定' : '未绑定'}
           </span>
           <span className="rounded-full bg-gray-100 px-2 py-1 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-            {remoteLabel}
+            {remoteDisplay}
           </span>
         </div>
 
         <dl className="grid gap-3 text-sm sm:grid-cols-2">
           <div className="space-y-1">
-            <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">仓库</dt>
-            <dd className="font-medium text-gray-900 dark:text-gray-100">{repoLabel}</dd>
-          </div>
-
-          <div className="space-y-1">
-            <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">仓库地址</dt>
+            <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">远程地址</dt>
             <dd className="break-all text-gray-700 dark:text-gray-300">{repositoryUrl || '尚未绑定'}</dd>
           </div>
 

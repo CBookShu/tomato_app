@@ -1,9 +1,8 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { SyncService } from '../../../src/main/sync/sync-service.js';
 
 vi.mock('electron', () => ({
   app: { getPath: vi.fn(() => '/tmp/tomato-user-data') },
-  shell: { openExternal: vi.fn() },
   safeStorage: {
     encryptString: vi.fn((value: string) => Buffer.from(value)),
     decryptString: vi.fn((value: Buffer) => value.toString()),
@@ -11,16 +10,15 @@ vi.mock('electron', () => ({
 }));
 
 describe('SyncService', () => {
+  const currentTime = new Date('2026-05-14T08:00:00.000Z');
+
   let storedBinding: {
-    repositoryUrl: string;
-    repositoryOwner: string;
-    repositoryName: string;
-    remoteName: 'origin';
+    remoteUrl: string;
+    remoteLabel: string;
     remoteBranch: string;
     boundAt: string;
     updatedAt: string;
   } | null;
-  let storedToken: string | null;
 
   const bindingStore = {
     loadBinding: vi.fn(async () => storedBinding),
@@ -30,15 +28,6 @@ describe('SyncService', () => {
     clearBinding: vi.fn(async () => {
       storedBinding = null;
     }),
-  };
-
-  const tokenStore = {
-    getToken: vi.fn(async () => storedToken),
-    saveToken: vi.fn(async () => undefined),
-    deleteToken: vi.fn(async () => {
-      storedToken = null;
-    }),
-    hasToken: vi.fn(async () => Boolean(storedToken)),
   };
 
   const git = {
@@ -55,7 +44,7 @@ describe('SyncService', () => {
     createBranch: vi.fn(async () => undefined),
     checkout: vi.fn(async () => undefined),
     currentBranch: vi.fn(async () => 'main'),
-    listBranches: vi.fn(async () => ['main']),
+    listBranches: vi.fn(async () => []),
     status: vi.fn(async () => ({ isClean: () => true, ahead: 0, behind: 0 })),
   };
 
@@ -72,15 +61,14 @@ describe('SyncService', () => {
   const syncManagerFactory = vi.fn(() => syncManager as any);
 
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(currentTime);
+
     storedBinding = null;
-    storedToken = 'ghp_test_token';
     bindingStore.loadBinding.mockClear();
     bindingStore.saveBinding.mockClear();
     bindingStore.clearBinding.mockClear();
-    tokenStore.getToken.mockClear();
-    tokenStore.saveToken.mockClear();
-    tokenStore.deleteToken.mockClear();
-    tokenStore.hasToken.mockClear();
+
     git.init.mockClear();
     git.addRemote.mockClear();
     git.getRemoteDefaultBranch.mockClear();
@@ -96,27 +84,34 @@ describe('SyncService', () => {
     git.currentBranch.mockClear();
     git.listBranches.mockClear();
     git.status.mockClear();
+
     syncManager.commitChanges.mockClear();
     syncManager.pushChanges.mockClear();
     syncManager.sync.mockClear();
     syncManager.resolveConflictAndSync.mockClear();
     syncManager.resetToRemote.mockClear();
     syncManager.getStatus.mockClear();
+
     gitFactory.mockClear();
     syncManagerFactory.mockClear();
   });
 
-  test('bindRepository stores binding metadata and initializes an empty repository in the background', async () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test('bindRepository stores remote URL and branch and pushes initial local state without OAuth', async () => {
+    git.getRemoteDefaultBranch.mockResolvedValueOnce(null);
+
     const service = new SyncService({
       bindingStore,
-      tokenStore,
       gitFactory,
       syncManagerFactory,
       storage: {} as any,
       dataDirProvider: () => '/tmp/tomato-data',
     } as any);
 
-    const result = await service.bindRepository('https://github.com/you/tomato-data');
+    const result = await service.bindRepository('https://example.com/team/tomato.git', 'main');
     const status = await service.getStatus();
 
     expect(gitFactory).toHaveBeenCalledWith(
@@ -124,68 +119,94 @@ describe('SyncService', () => {
       expect.objectContaining({
         remoteName: 'origin',
         remoteBranch: 'main',
-        env: expect.objectContaining({
-          GIT_TERMINAL_PROMPT: '0',
-          GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
-        }),
+        env: undefined,
       }),
     );
-    expect(git.init).toHaveBeenCalled();
-    expect(git.addRemote).toHaveBeenCalledWith('origin', 'https://github.com/you/tomato-data');
+    expect(git.init).toHaveBeenCalledTimes(1);
+    expect(git.addRemote).toHaveBeenCalledWith('origin', 'https://example.com/team/tomato.git');
     expect(git.getRemoteDefaultBranch).toHaveBeenCalledWith('origin');
-    expect(syncManager.commitChanges).toHaveBeenCalled();
-    expect(syncManager.pushChanges).toHaveBeenCalled();
+    expect(git.listBranches).toHaveBeenCalledTimes(1);
+    expect(git.createBranch).toHaveBeenCalledWith('main');
+    expect(syncManager.commitChanges).toHaveBeenCalledWith('sync: initial repository import');
+    expect(syncManager.pushChanges).toHaveBeenCalledTimes(1);
     expect(syncManager.sync).not.toHaveBeenCalled();
     expect(bindingStore.saveBinding).toHaveBeenCalledWith(
       expect.objectContaining({
-        repositoryUrl: 'https://github.com/you/tomato-data',
-        repositoryOwner: 'you',
-        repositoryName: 'tomato-data',
-        remoteName: 'origin',
+        remoteUrl: 'https://example.com/team/tomato.git',
+        remoteLabel: 'https://example.com/team/tomato.git',
         remoteBranch: 'main',
+        boundAt: '2026-05-14T08:00:00.000Z',
+        updatedAt: '2026-05-14T08:00:00.000Z',
       }),
     );
     expect(result).toEqual({ success: true, status: 'synced' });
-    expect(status.isLoggedIn).toBe(true);
-    expect(status.isBound).toBe(true);
-    expect(status.repositoryOwner).toBe('you');
-    expect(status.repositoryName).toBe('tomato-data');
-    expect(status.remoteBranch).toBe('main');
-    expect(status.syncStatus).toBe('synced');
+    expect(status).toMatchObject({
+      isLoggedIn: true,
+      isBound: true,
+      remoteUrl: 'https://example.com/team/tomato.git',
+      remoteLabel: 'https://example.com/team/tomato.git',
+      remoteBranch: 'main',
+      syncStatus: 'synced',
+      lastSyncTime: '2026-05-14T08:00:00.000Z',
+      conflictBranch: null,
+    });
   });
 
-  test('bindRepository rejects repositories whose default branch is not main', async () => {
-    git.getRemoteDefaultBranch.mockResolvedValueOnce('master');
+  test('sync keeps the local branch when the remote pull reports a conflict', async () => {
+    storedBinding = {
+      remoteUrl: 'https://example.com/team/tomato.git',
+      remoteLabel: 'https://example.com/team/tomato.git',
+      remoteBranch: 'main',
+      boundAt: '2026-05-14T07:50:00.000Z',
+      updatedAt: '2026-05-14T07:50:00.000Z',
+    };
+
+    syncManager.sync.mockResolvedValueOnce({
+      success: false,
+      status: 'conflict',
+      conflictBranch: 'local-backup-20260514-080000-abc12345',
+    });
 
     const service = new SyncService({
       bindingStore,
-      tokenStore,
       gitFactory,
       syncManagerFactory,
       storage: {} as any,
       dataDirProvider: () => '/tmp/tomato-data',
     } as any);
 
-    await expect(service.bindRepository('https://github.com/you/tomato-data')).rejects.toThrow(
-      'Remote default branch must be main',
-    );
-    expect(bindingStore.saveBinding).not.toHaveBeenCalled();
+    const result = await service.sync();
+    const status = await service.getStatus();
+
+    expect(git.init).toHaveBeenCalledTimes(1);
+    expect(git.addRemote).toHaveBeenCalledWith('origin', 'https://example.com/team/tomato.git');
+    expect(syncManager.sync).toHaveBeenCalledTimes(1);
+    expect(syncManager.resetToRemote).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      success: false,
+      status: 'conflict',
+      conflictBranch: 'local-backup-20260514-080000-abc12345',
+    });
+    expect(status).toMatchObject({
+      syncStatus: 'conflict',
+      conflictBranch: 'local-backup-20260514-080000-abc12345',
+      error: null,
+      remoteUrl: 'https://example.com/team/tomato.git',
+      remoteBranch: 'main',
+    });
   });
 
-  test('unbindRepository clears binding metadata and token state', async () => {
+  test('unbindRepository clears the generic binding state', async () => {
     storedBinding = {
-      repositoryUrl: 'https://github.com/you/tomato-data',
-      repositoryOwner: 'you',
-      repositoryName: 'tomato-data',
-      remoteName: 'origin',
+      remoteUrl: 'https://example.com/team/tomato.git',
+      remoteLabel: 'https://example.com/team/tomato.git',
       remoteBranch: 'main',
-      boundAt: '2026-05-13T12:00:00.000Z',
-      updatedAt: '2026-05-13T12:00:00.000Z',
+      boundAt: '2026-05-14T07:50:00.000Z',
+      updatedAt: '2026-05-14T07:50:00.000Z',
     };
 
     const service = new SyncService({
       bindingStore,
-      tokenStore,
       gitFactory,
       syncManagerFactory,
       storage: {} as any,
@@ -195,49 +216,57 @@ describe('SyncService', () => {
     await service.unbindRepository();
     const status = await service.getStatus();
 
-    expect(bindingStore.clearBinding).toHaveBeenCalled();
-    expect(tokenStore.deleteToken).toHaveBeenCalled();
-    expect(status.isLoggedIn).toBe(false);
-    expect(status.isBound).toBe(false);
+    expect(bindingStore.clearBinding).toHaveBeenCalledTimes(1);
+    expect(status).toMatchObject({
+      isLoggedIn: false,
+      isBound: false,
+      remoteUrl: null,
+      remoteLabel: null,
+      remoteBranch: null,
+      syncStatus: 'idle',
+    });
   });
 
-  test('seedTestState hydrates binding and conflict metadata for test-only flows', async () => {
+  test('seedTestState hydrates generic remote metadata for test flows', async () => {
     const service = new SyncService({
       bindingStore,
-      tokenStore,
       gitFactory,
       syncManagerFactory,
       storage: {} as any,
       dataDirProvider: () => '/tmp/tomato-data',
     } as any);
 
-    service.seedTestState({
+    await service.seedTestState({
       isLoggedIn: true,
       isBound: true,
-      repositoryUrl: 'https://github.com/you/tomato-data',
-      repositoryOwner: 'you',
-      repositoryName: 'tomato-data',
-      remoteName: 'origin',
-      remoteBranch: 'main',
-      boundAt: '2026-05-14T08:00:00.000Z',
-      updatedAt: '2026-05-14T09:00:00.000Z',
+      remoteUrl: 'https://example.com/team/tomato.git',
+      remoteLabel: 'example remote',
+      remoteBranch: 'develop',
+      boundAt: '2026-05-14T07:45:00.000Z',
+      updatedAt: '2026-05-14T07:55:00.000Z',
       syncStatus: 'conflict',
-      lastSyncTime: '2026-05-14T09:00:00.000Z',
-      conflictBranch: 'local-backup-20260514-090000-abc12345',
+      lastSyncTime: '2026-05-14T07:55:00.000Z',
+      conflictBranch: 'local-backup-20260514-075500-abc12345',
     });
 
     const status = await service.getStatus();
 
-    expect(status).toEqual(expect.objectContaining({
+    expect(bindingStore.saveBinding).toHaveBeenCalledWith(
+      expect.objectContaining({
+        remoteUrl: 'https://example.com/team/tomato.git',
+        remoteLabel: 'example remote',
+        remoteBranch: 'develop',
+      }),
+    );
+    expect(status).toMatchObject({
       isLoggedIn: true,
       isBound: true,
-      repositoryOwner: 'you',
-      repositoryName: 'tomato-data',
-      remoteName: 'origin',
-      remoteBranch: 'main',
+      remoteUrl: 'https://example.com/team/tomato.git',
+      remoteLabel: 'example remote',
+      remoteBranch: 'develop',
       syncStatus: 'conflict',
-      lastSyncTime: '2026-05-14T09:00:00.000Z',
-      conflictBranch: 'local-backup-20260514-090000-abc12345',
-    }));
+      lastSyncTime: '2026-05-14T07:55:00.000Z',
+      conflictBranch: 'local-backup-20260514-075500-abc12345',
+    });
   });
 });

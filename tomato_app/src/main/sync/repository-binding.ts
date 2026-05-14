@@ -2,79 +2,72 @@ import { app } from 'electron';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-const BINDING_FILE_NAME = 'github-sync-binding.json';
+const BINDING_FILE_NAME = 'repository-binding.json';
 
 export interface RepositoryBinding {
-  repositoryUrl: string;
-  repositoryOwner: string;
-  repositoryName: string;
-  remoteName: 'origin';
+  remoteUrl: string;
+  remoteLabel: string;
   remoteBranch: string;
   boundAt: string;
   updatedAt: string;
 }
 
-export interface ParsedRepositoryUrl {
-  repositoryUrl: string;
-  repositoryOwner: string;
-  repositoryName: string;
+export interface ParsedRemoteBinding {
+  remoteUrl: string;
+  remoteLabel: string;
+  remoteBranch: string;
 }
 
-export interface CreateRepositoryBindingOptions {
-  remoteName?: 'origin';
-  remoteBranch?: string;
-  now?: Date;
-}
+export function parseRemoteBinding(remoteUrl: string, remoteBranch: string): ParsedRemoteBinding {
+  const trimmedUrl = remoteUrl.trim();
+  const trimmedBranch = remoteBranch.trim();
 
-export function parseGitHubRepositoryUrl(input: string): ParsedRepositoryUrl {
-  let url: URL;
-  try {
-    url = new URL(input);
-  } catch {
-    throw new Error('Repository URL must be a full https://github.com/<owner>/<repo> URL');
+  if (!trimmedUrl) {
+    throw new Error('Remote URL is required');
   }
 
-  if (url.protocol !== 'https:' || url.hostname !== 'github.com') {
-    throw new Error('Repository URL must be a full https://github.com/<owner>/<repo> URL');
-  }
-
-  const segments = url.pathname.split('/').filter(Boolean);
-  if (segments.length !== 2) {
-    throw new Error('Repository URL must be a full https://github.com/<owner>/<repo> URL');
-  }
-
-  const [repositoryOwner, rawRepositoryName] = segments;
-  const repositoryName = rawRepositoryName.endsWith('.git')
-    ? rawRepositoryName.slice(0, -4)
-    : rawRepositoryName;
-
-  if (!repositoryOwner || !repositoryName) {
-    throw new Error('Repository URL must be a full https://github.com/<owner>/<repo> URL');
+  if (!trimmedBranch) {
+    throw new Error('Remote branch is required');
   }
 
   return {
-    repositoryUrl: `https://github.com/${repositoryOwner}/${repositoryName}`,
-    repositoryOwner,
-    repositoryName,
+    remoteUrl: trimmedUrl,
+    remoteLabel: trimmedUrl,
+    remoteBranch: trimmedBranch,
   };
 }
 
 export function createRepositoryBinding(
-  repositoryUrl: string,
-  options: CreateRepositoryBindingOptions = {},
+  remoteUrl: string,
+  remoteBranch: string,
+  now: Date = new Date(),
 ): RepositoryBinding {
-  const parsed = parseGitHubRepositoryUrl(repositoryUrl);
-  const now = (options.now ?? new Date()).toISOString();
+  const parsed = parseRemoteBinding(remoteUrl, remoteBranch);
+  const timestamp = now.toISOString();
 
   return {
-    repositoryUrl: parsed.repositoryUrl,
-    repositoryOwner: parsed.repositoryOwner,
-    repositoryName: parsed.repositoryName,
-    remoteName: options.remoteName ?? 'origin',
-    remoteBranch: options.remoteBranch ?? 'main',
-    boundAt: now,
-    updatedAt: now,
+    ...parsed,
+    boundAt: timestamp,
+    updatedAt: timestamp,
   };
+}
+
+export function parseGitHubRepositoryUrl(remoteUrl: string): ParsedRemoteBinding {
+  return parseRemoteBinding(remoteUrl, 'main');
+}
+
+export type ParsedRepositoryUrl = ParsedRemoteBinding;
+
+export interface CreateRepositoryBindingOptions {
+  remoteBranch?: string;
+  now?: Date;
+}
+
+export function createRepositoryBindingFromOptions(
+  remoteUrl: string,
+  options: CreateRepositoryBindingOptions = {},
+): RepositoryBinding {
+  return createRepositoryBinding(remoteUrl, options.remoteBranch ?? 'main', options.now);
 }
 
 export function getRepositoryBindingPath(userDataDir: string = app.getPath('userData')): string {

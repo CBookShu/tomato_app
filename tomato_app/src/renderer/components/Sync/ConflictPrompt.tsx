@@ -15,27 +15,16 @@ function formatTimestamp(value: string | null): string {
 export function ConflictPrompt({ onClose }: ConflictPromptProps) {
   const status = useSyncStore((s) => s.status);
   const conflictBranch = useSyncStore((s) => s.conflictBranch);
-  const repositoryOwner = useSyncStore((s) => s.repositoryOwner);
-  const repositoryName = useSyncStore((s) => s.repositoryName);
   const repositoryUrl = useSyncStore((s) => s.repositoryUrl);
+  const remoteLabel = useSyncStore((s) => s.remoteLabel);
   const remoteBranch = useSyncStore((s) => s.remoteBranch);
   const lastSyncTime = useSyncStore((s) => s.lastSyncTime);
   const dataDir = useSyncStore((s) => s.dataDir);
-  const rollback = useSyncStore((s) => s.rollback);
   const resolveConflict = useSyncStore((s) => s.resolveConflict);
 
   if (status !== 'conflict' || !conflictBranch) {
     return null;
   }
-
-  const handleRollback = async () => {
-    try {
-      await rollback();
-      onClose?.();
-    } catch (error) {
-      console.error('Rollback failed:', error);
-    }
-  };
 
   const handleResolveManually = async () => {
     try {
@@ -46,7 +35,7 @@ export function ConflictPrompt({ onClose }: ConflictPromptProps) {
     }
   };
 
-  const repoLabel = repositoryOwner && repositoryName ? `${repositoryOwner}/${repositoryName}` : repositoryUrl || '未绑定仓库';
+  const repoLabel = remoteLabel || repositoryUrl || '未绑定远程';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -76,22 +65,16 @@ export function ConflictPrompt({ onClose }: ConflictPromptProps) {
         </div>
 
         <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">
-          选择“回滚到远程版本”会丢弃本地冲突分支；选择“手动处理”则会尝试在您完成修改后继续同步。
+          当前冲突已保留本地分支和工作区。请先在本地处理冲突，再点击“手动处理后继续同步”。
         </p>
 
-        <div className="mt-6 space-y-3">
-          <Button onClick={handleRollback} className="w-full">
-            回滚到远程版本
-          </Button>
-
+        <div className="mt-6">
           <Button onClick={handleResolveManually} variant="outline" className="w-full">
             手动处理后继续同步
           </Button>
         </div>
 
-        <p className="mt-4 text-xs text-gray-400">
-          提示：如果您需要先编辑冲突文件，可以先保留此窗口，处理完成后再点击“手动处理后继续同步”。
-        </p>
+        <p className="mt-4 text-xs text-gray-400">提示：完成本地修改后，再继续同步即可。</p>
       </div>
     </div>
   );

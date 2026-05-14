@@ -9,7 +9,7 @@ vi.mock('electron', () => ({
 }));
 import {
   createRepositoryBinding,
-  parseGitHubRepositoryUrl,
+  parseRemoteBinding,
   RepositoryBindingStore,
 } from '../../../src/main/sync/repository-binding.js';
 
@@ -19,18 +19,22 @@ afterEach(async () => {
   await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
 });
 
-describe('parseGitHubRepositoryUrl', () => {
-  test('accepts a full https GitHub URL', () => {
-    expect(parseGitHubRepositoryUrl('https://github.com/you/tomato-data')).toEqual({
-      repositoryUrl: 'https://github.com/you/tomato-data',
-      repositoryOwner: 'you',
-      repositoryName: 'tomato-data',
+describe('parseRemoteBinding', () => {
+  test('accepts a remote URL and branch', () => {
+    expect(parseRemoteBinding('https://example.com/team/tomato.git', 'main')).toEqual({
+      remoteUrl: 'https://example.com/team/tomato.git',
+      remoteLabel: 'https://example.com/team/tomato.git',
+      remoteBranch: 'main',
     });
   });
 
-  test('rejects non-GitHub URLs', () => {
-    expect(() => parseGitHubRepositoryUrl('https://example.com/you/tomato-data')).toThrow(
-      'Repository URL must be a full https://github.com/<owner>/<repo> URL',
+  test('rejects an empty remote URL', () => {
+    expect(() => parseRemoteBinding('   ', 'main')).toThrow('Remote URL is required');
+  });
+
+  test('rejects an empty remote branch', () => {
+    expect(() => parseRemoteBinding('https://example.com/team/tomato.git', '  ')).toThrow(
+      'Remote branch is required',
     );
   });
 });
@@ -41,9 +45,7 @@ describe('RepositoryBindingStore', () => {
     tempDirs.push(dir);
 
     const store = new RepositoryBindingStore(dir);
-    const binding = createRepositoryBinding('https://github.com/you/tomato-data', {
-      now: new Date('2026-05-13T12:00:00.000Z'),
-    });
+    const binding = createRepositoryBinding('https://example.com/team/tomato.git', 'main', new Date('2026-05-13T12:00:00.000Z'));
 
     await store.saveBinding(binding);
 

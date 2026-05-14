@@ -19,21 +19,20 @@ function formatLastSyncTime(time: string | null): string {
 
 export function SyncStatus() {
   const status = useSyncStore((s) => s.status);
-  const isLoggedIn = useSyncStore((s) => s.isLoggedIn);
   const isBound = useSyncStore((s) => s.isBound);
-  const repositoryOwner = useSyncStore((s) => s.repositoryOwner);
-  const repositoryName = useSyncStore((s) => s.repositoryName);
+  const repositoryUrl = useSyncStore((s) => s.repositoryUrl);
+  const remoteLabel = useSyncStore((s) => s.remoteLabel);
   const remoteBranch = useSyncStore((s) => s.remoteBranch);
   const lastSyncTime = useSyncStore((s) => s.lastSyncTime);
   const error = useSyncStore((s) => s.error);
   const sync = useSyncStore((s) => s.sync);
 
   const config = statusConfig[status];
-  const repoLabel = repositoryOwner && repositoryName ? `${repositoryOwner}/${repositoryName}` : '未绑定仓库';
+  const repoLabel = remoteLabel || repositoryUrl || '未绑定远程';
   const branchLabel = remoteBranch || 'main';
 
   const handleSync = async () => {
-    if (status === 'syncing' || !isLoggedIn || !isBound) return;
+    if (status === 'syncing' || !isBound) return;
 
     try {
       await sync();
@@ -58,7 +57,7 @@ export function SyncStatus() {
 
           <p className="text-xs text-gray-500 dark:text-gray-400">
             {status === 'conflict'
-              ? '冲突已保存在备份分支中，处理完成后可继续同步。'
+              ? '冲突已保存在本地备份分支中，先处理冲突后再继续同步。'
               : isBound
                 ? `上次同步: ${formatLastSyncTime(lastSyncTime)}`
                 : '先绑定仓库后才能同步。'}
@@ -68,7 +67,7 @@ export function SyncStatus() {
         <Button
           onClick={handleSync}
           size="sm"
-          disabled={status === 'syncing' || !isLoggedIn || !isBound}
+          disabled={status === 'syncing' || !isBound}
           variant={status === 'error' ? 'destructive' : 'default'}
         >
           立即同步

@@ -1,41 +1,68 @@
+import type { FormEvent } from 'react';
 import { Button } from '@/components/ui/button.js';
 import { Input } from '@/components/ui/input.js';
 import { Label } from '@/components/ui/label.js';
 
 interface RepositoryFieldProps {
-  value: string;
-  onChange: (value: string) => void;
+  remoteUrl: string;
+  remoteBranch: string;
+  onRemoteUrlChange: (value: string) => void;
+  onRemoteBranchChange: (value: string) => void;
   onSubmit: () => void;
   disabled?: boolean;
 }
 
-export function RepositoryField({ value, onChange, onSubmit, disabled }: RepositoryFieldProps) {
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+export function RepositoryField({
+  remoteUrl,
+  remoteBranch,
+  onRemoteUrlChange,
+  onRemoteBranchChange,
+  onSubmit,
+  disabled,
+}: RepositoryFieldProps) {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit();
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-2">
-      <Label htmlFor="github-repository-url">GitHub 仓库地址</Label>
-      <div className="flex flex-col gap-2 sm:flex-row">
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="space-y-2">
+        <Label htmlFor="remote-url">远程地址</Label>
         <Input
-          id="github-repository-url"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder="https://github.com/owner/repo"
+          id="remote-url"
+          value={remoteUrl}
+          onChange={(event) => onRemoteUrlChange(event.target.value)}
+          placeholder="https://example.com/team/tomato.git"
           disabled={disabled}
           autoCapitalize="off"
           autoComplete="off"
           spellCheck={false}
-          className="flex-1"
         />
-        <Button type="submit" disabled={disabled}>
-          验证并连接
-        </Button>
       </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="remote-branch">目标分支</Label>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input
+            id="remote-branch"
+            value={remoteBranch}
+            onChange={(event) => onRemoteBranchChange(event.target.value)}
+            placeholder="main"
+            disabled={disabled}
+            autoCapitalize="off"
+            autoComplete="off"
+            spellCheck={false}
+            className="flex-1"
+          />
+          <Button type="submit" disabled={disabled}>
+            绑定远程
+          </Button>
+        </div>
+      </div>
+
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        支持直接粘贴完整的 `https://github.com/owner/repo` 地址，空仓库也可以直接绑定。
+        请输入一个本机可以访问的 Git 远程地址和要同步的分支。绑定后，应用会先以本地数据为准，再与远程进行同步。
       </p>
     </form>
   );

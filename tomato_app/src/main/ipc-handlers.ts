@@ -383,16 +383,8 @@ export function registerIpcHandlers(
   }
 
   // Sync handlers
-  ipcMain.handle(IPC.SYNC_LOGIN, async () => {
-    return syncService.login();
-  });
-
-  ipcMain.handle(IPC.SYNC_LOGOUT, async () => {
-    return syncService.logout();
-  });
-
-  ipcMain.handle(IPC.SYNC_BIND_REPOSITORY, async (_event, payload: { repositoryUrl: string }) => {
-    return syncService.bindRepository(payload.repositoryUrl);
+  ipcMain.handle(IPC.SYNC_BIND_REPOSITORY, async (_event, payload: { remoteUrl: string; remoteBranch: string }) => {
+    return syncService.bindRepository(payload.remoteUrl, payload.remoteBranch);
   });
 
   ipcMain.handle(IPC.SYNC_UNBIND_REPOSITORY, async () => {

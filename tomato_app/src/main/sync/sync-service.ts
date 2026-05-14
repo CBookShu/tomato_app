@@ -1,42 +1,28 @@
-import { shell } from 'electron';
 import type { FileStorage, SyncResult, SyncStatus } from '@pomodoro/core';
 import { GitClient, SyncManager } from '@pomodoro/core';
 import { getStorage } from '../database.js';
-import { OAuthServer, type OAuthResult } from './oauth-server.js';
 import { createGitCredentialEnv } from './git-credentials.js';
-import {
-  createRepositoryBinding,
-  parseGitHubRepositoryUrl,
-  RepositoryBindingStore,
-  type RepositoryBinding,
-} from './repository-binding.js';
-import { deleteToken, getToken, hasToken, saveToken } from './keychain.js';
+import { createRepositoryBinding, RepositoryBindingStore, type RepositoryBinding } from './repository-binding.js';
 
-const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || '';
-const GITHUB_REDIRECT_URI = 'http://localhost';
 const DEFAULT_REMOTE_NAME: 'origin' = 'origin';
-const DEFAULT_REMOTE_BRANCH = 'main';
 
-interface TokenStore {
-  getToken: () => Promise<string | null>;
-  saveToken: (token: string) => Promise<void>;
-  deleteToken: () => Promise<void>;
-  hasToken: () => Promise<boolean>;
+interface BindingRecord extends RepositoryBinding {
+  repositoryUrl?: string;
+  repositoryOwner?: string | null;
+  repositoryName?: string | null;
+  remoteName?: 'origin';
 }
 
 interface BindingStore {
-  loadBinding: () => Promise<RepositoryBinding | null>;
-  saveBinding: (binding: RepositoryBinding) => Promise<void>;
+  loadBinding: () => Promise<BindingRecord | null>;
+  saveBinding: (binding: BindingRecord) => Promise<void>;
   clearBinding: () => Promise<void>;
 }
 
 interface SyncServiceDeps {
   bindingStore?: BindingStore;
-  tokenStore?: TokenStore;
   gitFactory?: (dataDir: string, options: { remoteName?: string; remoteBranch?: string; env?: NodeJS.ProcessEnv }) => GitClient;
   syncManagerFactory?: (git: GitClient, storage: FileStorage, options: { remoteName: string; remoteBranch: string }) => SyncManager;
-  openExternal?: typeof shell.openExternal;
-  oauthServerFactory?: () => OAuthServer;
   dataDirProvider?: () => string;
   storage?: FileStorage;
 }
@@ -48,6 +34,8 @@ type GitClientWithRemoteDefaultBranch = GitClient & {
 export interface SyncServiceStatus {
   isLoggedIn: boolean;
   isBound: boolean;
+  remoteUrl: string | null;
+  remoteLabel: string | null;
   repositoryUrl: string | null;
   repositoryOwner: string | null;
   repositoryName: string | null;
@@ -61,18 +49,49 @@ export interface SyncServiceStatus {
   conflictBranch: string | null;
 }
 
-const defaultBindingStore = new RepositoryBindingStore();
-const defaultTokenStore: TokenStore = {
-  getToken,
-  saveToken,
-  deleteToken,
-  hasToken,
-};
+const defaultBindingStore = new RepositoryBindingStore() as unknown as BindingStore;
+
+function normalizeBinding(binding: BindingRecord | null): BindingRecord | null {
+  if (!binding) {
+    return null;
+  }
+
+  const remoteUrl = (binding.remoteUrl ?? binding.repositoryUrl ?? '').trim();
+  const remoteLabel = (binding.remoteLabel ?? remoteUrl).trim();
+  const remoteBranch = (binding.remoteBranch ?? '').trim();
+
+  if (!remoteUrl || !remoteBranch) {
+    return null;
+  }
+
+  return {
+    remoteUrl,
+    remoteLabel: remoteLabel || remoteUrl,
+    remoteBranch,
+    boundAt: binding.boundAt,
+    updatedAt: binding.updatedAt,
+    repositoryUrl: binding.repositoryUrl ?? remoteUrl,
+    repositoryOwner: binding.repositoryOwner ?? null,
+    repositoryName: binding.repositoryName ?? null,
+    remoteName: 'origin',
+  };
+}
+
+function createBindingRecord(remoteUrl: string, remoteBranch: string, now: Date = new Date()): BindingRecord {
+  const binding = createRepositoryBinding(remoteUrl, remoteBranch, now);
+  return {
+    ...binding,
+    repositoryUrl: binding.remoteUrl,
+    repositoryOwner: null,
+    repositoryName: null,
+    remoteName: 'origin',
+  };
+}
 
 export class SyncService {
   private git: GitClient | null = null;
   private syncManager: SyncManager | null = null;
-  private binding: RepositoryBinding | null = null;
+  private binding: BindingRecord | null = null;
   private syncStatus: SyncStatus = 'idle';
   private lastSyncTime: string | null = null;
   private lastError: string | null = null;
@@ -83,18 +102,6 @@ export class SyncService {
 
   private get bindingStore(): BindingStore {
     return this.deps.bindingStore ?? defaultBindingStore;
-  }
-
-  private get tokenStore(): TokenStore {
-    return this.deps.tokenStore ?? defaultTokenStore;
-  }
-
-  private get openExternal(): typeof shell.openExternal {
-    return this.deps.openExternal ?? shell.openExternal;
-  }
-
-  private get oauthServerFactory(): () => OAuthServer {
-    return this.deps.oauthServerFactory ?? (() => new OAuthServer());
   }
 
   private get dataDir(): string {
@@ -121,72 +128,13 @@ export class SyncService {
     return this.git as GitClientWithRemoteDefaultBranch;
   }
 
-  private async ensureToken(): Promise<string> {
-    const token = await this.tokenStore.getToken();
-    if (token) {
-      return token;
-    }
-
-    await this.login();
-    const refreshed = await this.tokenStore.getToken();
-    if (!refreshed) {
-      throw new Error('GitHub login failed');
-    }
-
-    return refreshed;
-  }
-
-  private async ensureBindingLoaded(): Promise<RepositoryBinding | null> {
+  private async ensureBindingLoaded(): Promise<BindingRecord | null> {
     if (this.binding) {
       return this.binding;
     }
 
-    this.binding = await this.bindingStore.loadBinding();
+    this.binding = normalizeBinding(await this.bindingStore.loadBinding());
     return this.binding;
-  }
-
-  private async ensureRuntime(
-    binding?: RepositoryBinding,
-    token?: string,
-    options: { prepareBranch?: boolean } = {},
-  ): Promise<RepositoryBinding> {
-    const activeBinding = binding ?? (await this.ensureBindingLoaded());
-    if (!activeBinding) {
-      throw new Error('Repository not bound');
-    }
-
-    const activeToken = token ?? (await this.ensureToken());
-    const needsGit = !this.git
-      || this.binding?.repositoryUrl !== activeBinding.repositoryUrl
-      || this.binding?.remoteBranch !== activeBinding.remoteBranch;
-
-    if (needsGit) {
-      this.git = this.gitFactory(this.dataDir, {
-        remoteName: activeBinding.remoteName,
-        remoteBranch: activeBinding.remoteBranch,
-        env: createGitCredentialEnv(activeToken),
-      });
-      this.syncManager = this.syncManagerFactory(this.git, this.storage, {
-        remoteName: activeBinding.remoteName,
-        remoteBranch: activeBinding.remoteBranch,
-      });
-    }
-
-    const git = this.syncGit;
-
-    await git.init();
-    await git.addRemote(activeBinding.remoteName, activeBinding.repositoryUrl);
-
-    const remoteDefaultBranch = await git.getRemoteDefaultBranch(activeBinding.remoteName);
-    if (remoteDefaultBranch && remoteDefaultBranch !== DEFAULT_REMOTE_BRANCH) {
-      throw new Error('Remote default branch must be main');
-    }
-
-    if (options.prepareBranch) {
-      await this.ensureLocalBranch(activeBinding.remoteBranch);
-    }
-    this.binding = activeBinding;
-    return activeBinding;
   }
 
   private async ensureLocalBranch(branchName: string): Promise<void> {
@@ -203,18 +151,62 @@ export class SyncService {
     await this.git.createBranch(branchName);
   }
 
-  private async recordSuccessfulSync(binding?: RepositoryBinding): Promise<void> {
+  private async ensureRuntime(
+    binding?: BindingRecord,
+    options: { prepareBranch?: boolean } = {},
+  ): Promise<BindingRecord> {
+    const activeBinding = binding ?? (await this.ensureBindingLoaded());
+
+    if (!activeBinding) {
+      throw new Error('Repository not bound');
+    }
+
+    const needsGit = !this.git
+      || !this.binding
+      || this.binding.remoteUrl !== activeBinding.remoteUrl
+      || this.binding.remoteBranch !== activeBinding.remoteBranch;
+
+    if (needsGit) {
+      this.git = this.gitFactory(this.dataDir, {
+        remoteName: DEFAULT_REMOTE_NAME,
+        remoteBranch: activeBinding.remoteBranch,
+        env: createGitCredentialEnv(),
+      });
+
+      this.syncManager = this.syncManagerFactory(this.git, this.storage, {
+        remoteName: DEFAULT_REMOTE_NAME,
+        remoteBranch: activeBinding.remoteBranch,
+      });
+    }
+
+    const git = this.syncGit;
+
+    await git.init();
+    await git.addRemote(DEFAULT_REMOTE_NAME, activeBinding.remoteUrl);
+
+    if (options.prepareBranch) {
+      await this.ensureLocalBranch(activeBinding.remoteBranch);
+    }
+
+    this.binding = activeBinding;
+    return activeBinding;
+  }
+
+  private async recordSuccessfulSync(binding?: BindingRecord): Promise<void> {
     const activeBinding = binding ?? this.binding;
+    const timestamp = new Date().toISOString();
+
     this.syncStatus = 'synced';
     this.lastError = null;
     this.conflictBranch = null;
-    this.lastSyncTime = new Date().toISOString();
+    this.lastSyncTime = timestamp;
 
     if (activeBinding) {
-      const updatedBinding: RepositoryBinding = {
+      const updatedBinding: BindingRecord = {
         ...activeBinding,
-        updatedAt: this.lastSyncTime,
+        updatedAt: timestamp,
       };
+
       this.binding = updatedBinding;
       await this.bindingStore.saveBinding(updatedBinding);
     }
@@ -223,9 +215,10 @@ export class SyncService {
   private async recordSyncFailure(error: string): Promise<void> {
     this.syncStatus = 'error';
     this.lastError = error;
+    this.conflictBranch = null;
   }
 
-  private async pushEmptyRemote(binding: RepositoryBinding): Promise<SyncResult> {
+  private async pushInitialState(binding: BindingRecord): Promise<SyncResult> {
     if (!this.syncManager) {
       throw new Error('Sync manager not initialized');
     }
@@ -235,107 +228,31 @@ export class SyncService {
 
     if (result.success) {
       await this.recordSuccessfulSync(binding);
-    } else {
-      await this.recordSyncFailure(result.error || 'Sync failed');
+      return result;
     }
 
+    await this.recordSyncFailure(result.error || 'Sync failed');
     return result;
   }
 
-  async isLoggedIn(): Promise<boolean> {
-    return this.tokenStore.hasToken();
-  }
+  async bindRepository(remoteUrl: string, remoteBranch: string): Promise<SyncResult> {
+    const binding = createBindingRecord(remoteUrl, remoteBranch);
 
-  async login(): Promise<boolean> {
-    if (await this.tokenStore.hasToken()) {
-      return true;
-    }
-
-    if (!GITHUB_CLIENT_ID) {
-      throw new Error('GitHub client ID is not configured');
-    }
-
-    const oauthServer = this.oauthServerFactory();
-    const port = await oauthServer.start();
-    const redirectUri = `${GITHUB_REDIRECT_URI}:${port}/callback`;
-    const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=repo`;
-
-    await this.openExternal(authUrl);
-
-    try {
-      const result: OAuthResult = await oauthServer.waitForCallback();
-
-      if (result.error) {
-        throw new Error(result.error);
-      }
-
-      const token = await this.exchangeCodeForToken(result.code, redirectUri);
-      await this.tokenStore.saveToken(token);
-      return true;
-    } finally {
-      await oauthServer.stop();
-    }
-  }
-
-  private async exchangeCodeForToken(code: string, redirectUri: string): Promise<string> {
-    const response = await fetch('https://github.com/login/oauth/access_token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
-        client_id: GITHUB_CLIENT_ID,
-        code,
-        redirect_uri: redirectUri,
-      }),
-    });
-
-    const data = (await response.json()) as { error?: string; error_description?: string; access_token?: string };
-    if (data.error) {
-      throw new Error(data.error_description || data.error);
-    }
-
-    if (!data.access_token) {
-      throw new Error('No access token received');
-    }
-
-    return data.access_token;
-  }
-
-  async logout(): Promise<void> {
-    await this.unbindRepository();
-  }
-
-  async bindRepository(repositoryUrl: string): Promise<SyncResult> {
-    const parsed = parseGitHubRepositoryUrl(repositoryUrl);
-    const token = await this.ensureToken();
-    const binding = createRepositoryBinding(parsed.repositoryUrl, {
-      remoteName: DEFAULT_REMOTE_NAME,
-      remoteBranch: DEFAULT_REMOTE_BRANCH,
-    });
-
-    await this.ensureRuntime(binding, token, { prepareBranch: true });
-
-    const remoteDefaultBranch = await this.syncGit.getRemoteDefaultBranch(binding.remoteName);
-    if (remoteDefaultBranch && remoteDefaultBranch !== DEFAULT_REMOTE_BRANCH) {
-      throw new Error('Remote default branch must be main');
-    }
-
+    await this.ensureRuntime(binding, { prepareBranch: true });
     await this.bindingStore.saveBinding(binding);
-    this.binding = binding;
+
     this.syncStatus = 'syncing';
     this.lastError = null;
 
+    const remoteDefaultBranch = await this.syncGit.getRemoteDefaultBranch(DEFAULT_REMOTE_NAME);
     if (!remoteDefaultBranch) {
-      return this.pushEmptyRemote(binding);
+      return this.pushInitialState(binding);
     }
 
     return this.sync();
   }
 
   async unbindRepository(): Promise<void> {
-    await this.tokenStore.deleteToken();
     await this.bindingStore.clearBinding();
 
     this.git = null;
@@ -352,11 +269,6 @@ export class SyncService {
     const binding = await this.ensureRuntime();
     this.syncStatus = 'syncing';
     this.lastError = null;
-
-    const remoteDefaultBranch = await this.syncGit.getRemoteDefaultBranch(binding.remoteName);
-    if (!remoteDefaultBranch) {
-      return this.pushEmptyRemote(binding);
-    }
 
     if (!this.syncManager) {
       throw new Error('Sync manager not initialized');
@@ -397,6 +309,7 @@ export class SyncService {
     if (result.status === 'conflict') {
       this.syncStatus = 'conflict';
       this.conflictBranch = result.conflictBranch ?? null;
+      this.lastError = null;
       return result;
     }
 
@@ -419,8 +332,6 @@ export class SyncService {
 
   async getStatus(): Promise<SyncServiceStatus> {
     const binding = await this.ensureBindingLoaded();
-    const isLoggedIn = this.testIsLoggedIn ?? await this.tokenStore.hasToken();
-
     const syncState = this.syncManager ? await this.syncManager.getStatus() : null;
     const syncStatus: SyncStatus = this.syncStatus !== 'idle'
       ? this.syncStatus
@@ -429,12 +340,14 @@ export class SyncService {
         : 'idle';
 
     return {
-      isLoggedIn,
+      isLoggedIn: this.testIsLoggedIn ?? Boolean(binding),
       isBound: Boolean(binding),
-      repositoryUrl: binding?.repositoryUrl ?? null,
+      remoteUrl: binding?.remoteUrl ?? null,
+      remoteLabel: binding?.remoteLabel ?? null,
+      repositoryUrl: binding?.repositoryUrl ?? binding?.remoteUrl ?? null,
       repositoryOwner: binding?.repositoryOwner ?? null,
       repositoryName: binding?.repositoryName ?? null,
-      remoteName: binding?.remoteName ?? null,
+      remoteName: binding ? DEFAULT_REMOTE_NAME : null,
       remoteBranch: binding?.remoteBranch ?? null,
       boundAt: binding?.boundAt ?? null,
       updatedAt: binding?.updatedAt ?? null,
@@ -448,11 +361,12 @@ export class SyncService {
   async seedTestState(payload: {
     isLoggedIn?: boolean;
     isBound?: boolean;
+    remoteUrl?: string | null;
+    remoteLabel?: string | null;
+    remoteBranch?: string | null;
     repositoryUrl?: string | null;
     repositoryOwner?: string | null;
     repositoryName?: string | null;
-    remoteName?: string | null;
-    remoteBranch?: string | null;
     boundAt?: string | null;
     updatedAt?: string | null;
     syncStatus?: SyncStatus;
@@ -460,7 +374,7 @@ export class SyncService {
     error?: string | null;
     conflictBranch?: string | null;
   }): Promise<void> {
-    const isBound = payload.isBound ?? Boolean(payload.repositoryUrl);
+    const isBound = payload.isBound ?? Boolean(payload.remoteUrl ?? payload.repositoryUrl);
 
     this.testIsLoggedIn = payload.isLoggedIn ?? null;
     this.syncStatus = payload.syncStatus ?? 'idle';
@@ -470,22 +384,30 @@ export class SyncService {
     this.git = null;
     this.syncManager = null;
 
-    if (!isBound || !payload.repositoryUrl || !payload.repositoryOwner || !payload.repositoryName) {
+    const remoteUrl = payload.remoteUrl ?? payload.repositoryUrl ?? null;
+    if (!isBound || !remoteUrl) {
       this.binding = null;
       await this.bindingStore.clearBinding();
       return;
     }
 
     const now = payload.updatedAt ?? payload.boundAt ?? new Date().toISOString();
-    this.binding = {
-      repositoryUrl: payload.repositoryUrl,
-      repositoryOwner: payload.repositoryOwner,
-      repositoryName: payload.repositoryName,
-      remoteName: (payload.remoteName ?? 'origin') as 'origin',
+    this.binding = normalizeBinding({
+      remoteUrl,
+      remoteLabel: payload.remoteLabel ?? remoteUrl,
       remoteBranch: payload.remoteBranch ?? 'main',
       boundAt: payload.boundAt ?? now,
       updatedAt: payload.updatedAt ?? now,
-    };
+      repositoryUrl: payload.repositoryUrl ?? remoteUrl,
+      repositoryOwner: payload.repositoryOwner ?? null,
+      repositoryName: payload.repositoryName ?? null,
+      remoteName: 'origin',
+    });
+
+    if (!this.binding) {
+      await this.bindingStore.clearBinding();
+      return;
+    }
 
     await this.bindingStore.saveBinding(this.binding);
   }

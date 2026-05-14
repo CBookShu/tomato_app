@@ -5,18 +5,15 @@ import { SyncBindingStatus } from '@/components/Sync/SyncBindingStatus.js';
 import { SyncStatus } from '@/components/Sync/SyncStatus.js';
 
 export function SyncSettings() {
-  const [repositoryUrl, setRepositoryUrl] = useState('');
+  const [remoteUrl, setRemoteUrl] = useState('');
+  const [remoteBranch, setRemoteBranch] = useState('');
 
-  const isLoggedIn = useSyncStore((s) => s.isLoggedIn);
-  const isBound = useSyncStore((s) => s.isBound);
   const status = useSyncStore((s) => s.status);
   const repositoryUrlFromStore = useSyncStore((s) => s.repositoryUrl);
+  const remoteBranchFromStore = useSyncStore((s) => s.remoteBranch);
   const error = useSyncStore((s) => s.error);
   const dataDir = useSyncStore((s) => s.dataDir);
   const bindRepository = useSyncStore((s) => s.bindRepository);
-  const unbindRepository = useSyncStore((s) => s.unbindRepository);
-  const login = useSyncStore((s) => s.login);
-  const logout = useSyncStore((s) => s.logout);
   const getStatus = useSyncStore((s) => s.getStatus);
   const getDataDir = useSyncStore((s) => s.getDataDir);
 
@@ -33,39 +30,20 @@ export function SyncSettings() {
   }, [getStatus, getDataDir]);
 
   useEffect(() => {
-    setRepositoryUrl(repositoryUrlFromStore ?? '');
+    setRemoteUrl(repositoryUrlFromStore ?? '');
   }, [repositoryUrlFromStore]);
 
+  useEffect(() => {
+    setRemoteBranch(remoteBranchFromStore ?? '');
+  }, [remoteBranchFromStore]);
+
   const handleBind = async () => {
-    const trimmed = repositoryUrl.trim();
-    if (!trimmed) return;
+    const trimmedUrl = remoteUrl.trim();
+    const trimmedBranch = remoteBranch.trim();
+    if (!trimmedUrl || !trimmedBranch) return;
 
     try {
-      await bindRepository(trimmed);
-    } catch {
-      // Error is already stored for display.
-    }
-  };
-
-  const handleLogin = async () => {
-    try {
-      await login();
-    } catch {
-      // Error is already stored for display.
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch {
-      // Error is already stored for display.
-    }
-  };
-
-  const handleUnbind = async () => {
-    try {
-      await unbindRepository();
+      await bindRepository(trimmedUrl, trimmedBranch);
     } catch {
       // Error is already stored for display.
     }
@@ -74,12 +52,14 @@ export function SyncSettings() {
   return (
     <div className="space-y-4">
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        先登录 GitHub，再粘贴仓库地址绑定。绑定后即可通过同一仓库进行同步，空仓库会在后台自动初始化。
+        先确认本机已经可以访问目标 Git 远程，然后填写远程地址和目标分支完成绑定。
       </p>
 
       <RepositoryField
-        value={repositoryUrl}
-        onChange={setRepositoryUrl}
+        remoteUrl={remoteUrl}
+        remoteBranch={remoteBranch}
+        onRemoteUrlChange={setRemoteUrl}
+        onRemoteBranchChange={setRemoteBranch}
         onSubmit={handleBind}
         disabled={status === 'syncing'}
       />
@@ -90,13 +70,7 @@ export function SyncSettings() {
         </div>
       )}
 
-      <SyncBindingStatus
-        isLoggedIn={isLoggedIn}
-        isBound={isBound}
-        onLogin={handleLogin}
-        onLogout={handleLogout}
-        onUnbind={handleUnbind}
-      />
+      <SyncBindingStatus />
 
       <SyncStatus />
 
@@ -110,7 +84,6 @@ export function SyncSettings() {
           </code>
         </div>
       )}
-
     </div>
   );
 }
