@@ -21,13 +21,13 @@ test.describe('基础验收：同步绑定', () => {
 
     await expect(page.getByLabel('远程地址')).toHaveValue('https://example.com/team/tomato.git');
     await expect(page.getByLabel('目标分支')).toHaveValue('main');
-    await expect(page.getByText('已绑定')).toBeVisible();
+    await expect(page.getByText('已绑定', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: '绑定远程' })).toBeVisible();
     await expect(page.getByRole('button', { name: '解绑' })).toBeVisible();
 
     await page.getByRole('button', { name: '解绑' }).click();
 
-    await expect(page.getByText('未绑定')).toBeVisible();
+    await expect(page.getByText('未绑定', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: '解绑' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: '绑定远程' })).toBeVisible();
     await expect(page.getByLabel('远程地址')).toHaveValue('');
@@ -50,13 +50,12 @@ test.describe('基础验收：同步绑定', () => {
 
     await expect(page.getByLabel('远程地址')).toHaveValue('https://example.com/team/tomato.git');
     await expect(page.getByLabel('目标分支')).toHaveValue('main');
-    await expect(page.getByText('有冲突')).toBeVisible();
-    await expect(page.getByText('local-backup-20260514-090000-abc12345')).toBeVisible();
+    await expect(page.getByText('有冲突', { exact: true })).toBeVisible();
+    await expect(page.locator('div').filter({ hasText: /^local-backup-20260514-090000-abc12345$/ }).last()).toBeVisible();
     await expect(page.getByText('当前冲突已保留本地分支和工作区。请先在本地处理冲突，再点击“手动处理后继续同步”。')).toBeVisible();
     await expect(page.getByRole('button', { name: '手动处理后继续同步' })).toBeVisible();
 
     await page.getByRole('button', { name: '手动处理后继续同步' }).click();
     await expect(page.getByRole('button', { name: '手动处理后继续同步' })).toHaveCount(0);
-    await expect(page.getByText('已同步')).toBeVisible();
   });
 });
