@@ -5,7 +5,7 @@ import type { TaskManager, IStatsRepository, ConfigFileRepository, AppConfig } f
 import type { PomodoroConfig } from '@pomodoro/core';
 import { updateTrayIcon, updateTrayTime, setTrayTaskTitle } from './tray.js';
 import type { TimerStatus } from './tray.js';
-import { clearAllData, getStorage } from './database.js';
+import { clearAllData, getNotesStorage, getStorage } from './database.js';
 import { safeSend } from './safe-send.js';
 import { SyncService } from './sync/sync-service.js';
 
@@ -166,6 +166,17 @@ export function registerIpcHandlers(
   ipcMain.handle(IPC.TRAY_PAUSE, async () => (await getTimer()).pause());
   ipcMain.handle(IPC.TRAY_STOP, async () => (await getTimer()).stop());
   ipcMain.handle(IPC.TRAY_SKIP_BREAK, async () => (await getTimer()).skip());
+
+  // Notes handlers
+  ipcMain.handle(IPC.NOTES_GET, async (_e, payload) => {
+    return getNotesStorage().getNotes(payload.taskId);
+  });
+  ipcMain.handle(IPC.NOTES_SAVE, async (_e, payload) => {
+    await getNotesStorage().saveNotes(payload.taskId, payload.content);
+  });
+  ipcMain.handle(IPC.NOTES_DELETE, async (_e, payload) => {
+    await getNotesStorage().deleteNotes(payload.taskId);
+  });
 
   // Task handlers (only if taskManager injected)
   if (taskManager) {

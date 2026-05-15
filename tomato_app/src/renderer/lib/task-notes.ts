@@ -3,9 +3,9 @@ export function normalizeTaskNotes(notes?: string | null): string {
 }
 
 export function shouldAutoSaveNotes(
-  taskId: string | null | undefined,
+  isNotesLoaded: boolean,
   lastSavedNotes: string | null,
   debouncedNotes: string,
 ): boolean {
-  return Boolean(taskId) && lastSavedNotes !== null && debouncedNotes !== lastSavedNotes;
+  return isNotesLoaded && lastSavedNotes !== null && debouncedNotes !== lastSavedNotes;
 }

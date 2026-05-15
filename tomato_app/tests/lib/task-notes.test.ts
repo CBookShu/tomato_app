@@ -8,10 +8,14 @@ describe('task-notes', () => {
   });
 
   test('shouldAutoSaveNotes skips when notes are unchanged', () => {
-    expect(shouldAutoSaveNotes('task-1', 'hello', 'hello')).toBe(false);
+    expect(shouldAutoSaveNotes(true, 'hello', 'hello')).toBe(false);
   });
 
   test('shouldAutoSaveNotes runs when task exists and notes changed', () => {
-    expect(shouldAutoSaveNotes('task-1', 'hello', 'hello world')).toBe(true);
+    expect(shouldAutoSaveNotes(true, 'hello', 'hello world')).toBe(true);
+  });
+
+  test('shouldAutoSaveNotes waits until notes finish loading', () => {
+    expect(shouldAutoSaveNotes(false, 'hello', 'hello world')).toBe(false);
   });
 });

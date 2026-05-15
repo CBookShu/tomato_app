@@ -1,3 +1,5 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { test, expect } from './fixtures';
 import { clearDataAndReload, createDefaultTask } from './helpers/acceptance-helpers';
 
@@ -6,7 +8,7 @@ test.describe('基础验收：任务与笔记', () => {
     await clearDataAndReload(page, electronApp);
   });
 
-  test('任务重命名与笔记编辑在刷新后应持久化', async ({ page }) => {
+  test('任务笔记应持久化到 notes 目录并可在刷新后读回', async ({ page }) => {
     await createDefaultTask(page, '验收任务：写测试');
 
     const taskItem = page.getByTestId('task-item').filter({ hasText: '验收任务：写测试' }).first();
@@ -31,6 +33,23 @@ test.describe('基础验收：任务与笔记', () => {
       await expect(savingIndicator).toHaveCount(0);
     }
 
+    const { taskId, dataDir } = await page.evaluate(async (taskTitle: string) => {
+      const tasks = await window.electronAPI.invoke('task:getAll');
+      const task = tasks.find((item) => item.title === taskTitle);
+      if (!task) {
+        throw new Error(`Task not found: ${taskTitle}`);
+      }
+      const dataDir = await window.electronAPI.invoke('sync:get-data-dir');
+      return {
+        taskId: task.id,
+        dataDir,
+      };
+    }, '验收任务：写测试');
+
+    const notesPath = path.join(dataDir, 'notes', `${taskId}.md`);
+    const fileContent = await fs.readFile(notesPath, 'utf8');
+    expect(fileContent).toContain('自动保存笔记');
+
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
     await page.getByRole('tab', { name: '任务' }).click();
@@ -40,6 +59,16 @@ test.describe('基础验收：任务与笔记', () => {
     await persistedTask.click();
 
     await expect(page.locator('textarea[placeholder="添加笔记..."]')).toHaveValue(/自动保存笔记/);
+
+    await page.evaluate(async (taskIdToDelete: string) => {
+      await window.electronAPI.invoke('task:delete', { id: taskIdToDelete });
+    }, taskId);
+
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+    await page.getByRole('tab', { name: '任务' }).click();
+    await expect(page.getByTestId('task-item').filter({ hasText: '验收任务：写测试' })).toHaveCount(0);
+    await expect(fs.readFile(notesPath, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
   test('空标题不应提交，编辑输入框保持可见', async ({ page }) => {

@@ -30,6 +30,7 @@ export function TaskDetail() {
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [lastSavedNotes, setLastSavedNotes] = useState<string | null>(null);
+  const [isNotesLoaded, setIsNotesLoaded] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   // Debounced notes for auto-save
@@ -37,15 +38,53 @@ export function TaskDetail() {
 
   // Sync notes with selected task
   useEffect(() => {
+    let cancelled = false;
+
     if (task) {
-      const currentNotes = normalizeTaskNotes(task.notes);
-      setNotes(currentNotes);
-      setLastSavedNotes(currentNotes);
-      return;
+      setNotes('');
+      setLastSavedNotes(null);
+      setIsNotesLoaded(false);
+      setIsSaving(false);
+      setSaveError(null);
+
+      void (async () => {
+        try {
+          const currentNotes = normalizeTaskNotes(
+            await invoke(IPC.NOTES_GET, { taskId: task.id }),
+          );
+          if (cancelled) {
+            return;
+          }
+          setNotes(currentNotes);
+          setLastSavedNotes(currentNotes);
+        } catch (error) {
+          if (cancelled) {
+            return;
+          }
+          console.error('Failed to load notes:', error);
+          setNotes('');
+          setLastSavedNotes('');
+        } finally {
+          if (!cancelled) {
+            setIsNotesLoaded(true);
+          }
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
     }
+
     setNotes('');
     setLastSavedNotes(null);
-  }, [task?.id]);
+    setIsNotesLoaded(false);
+    setIsSaving(false);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [task?.id, invoke]);
 
   useEffect(() => {
     setSaveError(null);
@@ -55,13 +94,9 @@ export function TaskDetail() {
     setIsSaving(true);
     setSaveError(null);
     try {
-      // Optimistic UI update
-      updateTask(taskId, { notes: value });
-
-      // Persist to database
-      await invoke(IPC.TASK_EDIT, {
-        id: taskId,
-        updates: { notes: value },
+      await invoke(IPC.NOTES_SAVE, {
+        taskId,
+        content: value,
       });
 
       setLastSavedNotes(value);
@@ -71,15 +106,16 @@ export function TaskDetail() {
     } finally {
       setIsSaving(false);
     }
-  }, [updateTask, invoke]);
+  }, [invoke]);
 
   // Auto-save when debounced notes change
   useEffect(() => {
-    if (!shouldAutoSaveNotes(task?.id, lastSavedNotes, debouncedNotes)) {
+    const taskId = task?.id;
+    if (!taskId || !shouldAutoSaveNotes(isNotesLoaded, lastSavedNotes, debouncedNotes)) {
       return;
     }
-    void handleSaveNotes(task!.id, debouncedNotes);
-  }, [debouncedNotes, lastSavedNotes, task?.id, handleSaveNotes]);
+    void handleSaveNotes(taskId, debouncedNotes);
+  }, [debouncedNotes, isNotesLoaded, lastSavedNotes, task?.id, handleSaveNotes]);
 
   if (!task) {
     return (

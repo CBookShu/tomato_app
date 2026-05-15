@@ -45,6 +45,11 @@ export const IPC = {
   TASK_REORDER: 'task:reorder',
   TASK_INCREMENT_POMODORO: 'task:incrementPomodoro',
 
+  // Task notes
+  NOTES_GET: 'notes:get',
+  NOTES_SAVE: 'notes:save',
+  NOTES_DELETE: 'notes:delete',
+
   // Groups
   GROUP_CREATE: 'group:create',
   GROUP_GET: 'group:get',
@@ -101,6 +106,10 @@ export interface IpcChannelMap {
   [IPC.TASK_MOVE_TO_GROUP]: { request: { taskId: string; newGroupId: string }; response: Task };
   [IPC.TASK_REORDER]: { request: { taskId: string; newIndex: number }; response: void };
   [IPC.TASK_INCREMENT_POMODORO]: { request: { id: string; dateStr?: string }; response: Task };
+
+  [IPC.NOTES_GET]: { request: { taskId: string }; response: string | null };
+  [IPC.NOTES_SAVE]: { request: { taskId: string; content: string }; response: void };
+  [IPC.NOTES_DELETE]: { request: { taskId: string }; response: void };
 
   [IPC.GROUP_CREATE]: { request: { input: NewTaskGroup }; response: TaskGroup };
   [IPC.GROUP_GET]: { request: { id: string }; response: TaskGroup | null };

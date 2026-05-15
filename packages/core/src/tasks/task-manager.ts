@@ -2,6 +2,7 @@ import { Task, TaskGroup, NewTask, NewTaskGroup, TaskStatus, DEFAULT_GROUP_ID } 
 import { DailyStats } from '../types/stats.js';
 import { generateId } from '../utils/id-generator.js';
 import { addTaskAtPosition, reorderTasks, removeTaskFromOrder } from './sorting.js';
+import type { NotesStorage } from '../storage/notes-storage.js';
 
 export type { Task, TaskGroup } from '../types/task.js';
 
@@ -57,6 +58,7 @@ export class TaskManager {
     private taskRepo: ITaskRepository,
     private groupRepo: ITaskGroupRepository,
     private statsRepo?: IStatsRepository,
+    private notesStorage?: NotesStorage,
   ) {}
 
   async initialize(): Promise<void> {
@@ -158,6 +160,7 @@ export class TaskManager {
     }
 
     await this.taskRepo.delete(id);
+    await this.notesStorage?.deleteNotes(id);
   }
 
   async moveTaskToGroup(taskId: string, newGroupId: string): Promise<Task> {
@@ -214,7 +217,7 @@ export class TaskManager {
     }
     const tasks = await this.taskRepo.findByGroup(id);
     for (const task of tasks) {
-      await this.taskRepo.delete(task.id);
+      await this.deleteTask(task.id);
     }
     await this.groupRepo.delete(id);
   }

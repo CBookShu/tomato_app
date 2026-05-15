@@ -44,7 +44,7 @@ export async function initStorage(): Promise<StorageContext> {
   const statsRepo = new StatsFileRepository(storage);
   const configRepo = new ConfigFileRepository(storage);
   const notesStorage = new NotesStorage(storage);
-  const taskManager = new TaskManager(taskRepo, groupRepo, statsRepo);
+  const taskManager = new TaskManager(taskRepo, groupRepo, statsRepo, notesStorage);
 
   context = {
     storage,
