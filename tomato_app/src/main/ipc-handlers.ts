@@ -34,6 +34,7 @@ let onPomodoroComplete: (() => void) | null = null;
 let onBreakComplete: (() => void) | null = null;
 let currentTimerStatus: TimerStatus = 'idle';
 let currentRemainingTime: number = 0;
+const taskNoteOperationChains = new Map<string, Promise<unknown>>();
 
 // Sync service instance
 const syncService = new SyncService();
@@ -120,6 +121,19 @@ async function getTimer(): Promise<PomodoroTimer> {
   return timer;
 }
 
+function withTaskNoteLock<T>(taskId: string, operation: () => Promise<T>): Promise<T> {
+  const previous = taskNoteOperationChains.get(taskId) ?? Promise.resolve();
+  const chain = previous.then(operation, operation);
+  const cleanup = chain.finally(() => {
+    if (taskNoteOperationChains.get(taskId) === cleanup) {
+      taskNoteOperationChains.delete(taskId);
+    }
+  });
+
+  taskNoteOperationChains.set(taskId, cleanup);
+  return chain;
+}
+
 // Update timer config when settings change - recreate timer with new config
 async function updateTimerConfig(): Promise<void> {
   if (timer) {
@@ -172,10 +186,13 @@ export function registerIpcHandlers(
     return getNotesStorage().getNotes(payload.taskId);
   });
   ipcMain.handle(IPC.NOTES_SAVE, async (_e, payload) => {
-    await getNotesStorage().saveNotes(payload.taskId, payload.content);
-  });
-  ipcMain.handle(IPC.NOTES_DELETE, async (_e, payload) => {
-    await getNotesStorage().deleteNotes(payload.taskId);
+    await withTaskNoteLock(payload.taskId, async () => {
+      if (taskManager && !(await taskManager.getTask(payload.taskId))) {
+        return;
+      }
+
+      await getNotesStorage().saveNotes(payload.taskId, payload.content);
+    });
   });
 
   // Task handlers (only if taskManager injected)
@@ -192,7 +209,9 @@ export function registerIpcHandlers(
       safeSend(currentWindow, IPC.TASK_COMPLETE_EVENT, payload.id);
       return result;
     });
-    ipcMain.handle(IPC.TASK_DELETE, async (_e, payload) => taskManager!.deleteTask(payload.id));
+    ipcMain.handle(IPC.TASK_DELETE, async (_e, payload) =>
+      withTaskNoteLock(payload.id, async () => taskManager!.deleteTask(payload.id)),
+    );
     ipcMain.handle(IPC.TASK_MOVE_TO_GROUP, async (_e, payload) =>
       taskManager!.moveTaskToGroup(payload.taskId, payload.newGroupId),
     );
@@ -278,13 +297,6 @@ export function registerIpcHandlers(
         }
       }
       return result;
-    });
-    ipcMain.handle(IPC.SETTINGS_DELETE, async (_e, payload) => {
-      // Reset a setting to default by setting it to undefined
-      const updates: Partial<AppConfig> = {};
-      const key = payload.key as string;
-      (updates as Record<string, undefined>)[key] = undefined;
-      return configRepo!.update(updates);
     });
   }
 

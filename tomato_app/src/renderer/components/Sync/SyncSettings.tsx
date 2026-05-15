@@ -51,7 +51,7 @@ export function SyncSettings() {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-gray-500 dark:text-gray-400">
+      <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
         先确认本机已经可以访问目标 Git 远程，然后填写远程地址和目标分支完成绑定。
       </p>
 
@@ -75,7 +75,7 @@ export function SyncSettings() {
       <SyncStatus />
 
       {dataDir && (
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <h4 className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
             数据目录
           </h4>

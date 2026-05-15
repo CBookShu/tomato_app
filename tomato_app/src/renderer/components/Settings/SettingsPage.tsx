@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card.js';
 import { Label } from '@/components/ui/label.js';
 import { Input } from '@/components/ui/input.js';
@@ -9,11 +9,28 @@ import { useIpc } from '@/hooks/useIpc.js';
 import { IPC } from '@shared/ipc-channels.js';
 import type { ExportData } from '@shared/ipc-channels.js';
 import { SyncSettings } from '@/components/Sync/SyncSettings.js';
-import { LEGACY_SETTINGS_MAP, getLegacySettingKey, normalizeSettings, readSetting } from '@/lib/settings-keys.js';
+import { readSetting, type CanonicalSettingKey } from '@/lib/settings-keys.js';
+
+function SettingRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+      <Label className="min-w-0 text-sm leading-snug text-gray-700 dark:text-gray-200 sm:whitespace-nowrap">
+        {label}
+      </Label>
+      <div className="justify-self-start sm:justify-self-end">{children}</div>
+    </div>
+  );
+}
 
 export function SettingsPage() {
   const { invoke } = useIpc();
-  const { settings, setAll, set, remove } = useSettingsStore();
+  const { settings, setAll, set } = useSettingsStore();
   const [loaded, setLoaded] = useState(false);
 
   // 数据导出
@@ -94,7 +111,7 @@ export function SettingsPage() {
   useEffect(() => {
     async function load() {
       const all = await invoke(IPC.SETTINGS_GET_ALL);
-      if (all) setAll(normalizeSettings(all));
+      if (all) setAll(all);
       setLoaded(true);
     }
     load();
@@ -102,12 +119,9 @@ export function SettingsPage() {
 
   if (!loaded) return <div className="text-center text-gray-400 py-8">加载中...</div>;
 
-  const updateKey = async (key: keyof typeof LEGACY_SETTINGS_MAP, value: string) => {
-    const legacyKey = getLegacySettingKey(key);
+  const updateKey = async (key: CanonicalSettingKey, value: string) => {
     set(key, value);
-    remove(legacyKey);
     await invoke(IPC.SETTINGS_SET, { key, value });
-    await invoke(IPC.SETTINGS_DELETE, { key: legacyKey });
   };
 
   const updateNumericKey = async (
@@ -119,130 +133,128 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-4 max-w-md mx-auto w-full py-4 px-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">计时设置</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <Label>番茄时长 (分钟)</Label>
-            <Input
-              type="number" min={1} max={120}
-              value={readSetting(settings, 'pomodoroDuration', '25')}
-              onChange={(e) => updateNumericKey('pomodoroDuration', e.target.value)}
-              className="w-20"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label>短休息 (分钟)</Label>
-            <Input
-              type="number" min={1} max={30}
-              value={readSetting(settings, 'shortBreakDuration', '5')}
-              onChange={(e) => updateNumericKey('shortBreakDuration', e.target.value)}
-              className="w-20"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label>长休息 (分钟)</Label>
-            <Input
-              type="number" min={1} max={60}
-              value={readSetting(settings, 'longBreakDuration', '15')}
-              onChange={(e) => updateNumericKey('longBreakDuration', e.target.value)}
-              className="w-20"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label>长休息间隔 (番茄数)</Label>
-            <Input
-              type="number" min={1} max={10}
-              value={readSetting(settings, 'longBreakInterval', '4')}
-              onChange={(e) => updateNumericKey('longBreakInterval', e.target.value)}
-              className="w-20"
-            />
-          </div>
-        </CardContent>
-      </Card>
+    <div className="w-full max-w-6xl mx-auto px-4 py-4">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
+        <div className="grid gap-4">
+          <Card>
+            <CardHeader className="px-4 pt-4 pb-3">
+              <CardTitle className="text-sm font-medium">计时设置</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 px-4 pb-4 pt-0">
+              <SettingRow label="番茄时长 (分钟)">
+                <Input
+                  type="number" min={1} max={120}
+                  value={readSetting(settings, 'pomodoroDuration', '25')}
+                  onChange={(e) => updateNumericKey('pomodoroDuration', e.target.value)}
+                  className="w-24"
+                />
+              </SettingRow>
+              <SettingRow label="短休息 (分钟)">
+                <Input
+                  type="number" min={1} max={30}
+                  value={readSetting(settings, 'shortBreakDuration', '5')}
+                  onChange={(e) => updateNumericKey('shortBreakDuration', e.target.value)}
+                  className="w-24"
+                />
+              </SettingRow>
+              <SettingRow label="长休息 (分钟)">
+                <Input
+                  type="number" min={1} max={60}
+                  value={readSetting(settings, 'longBreakDuration', '15')}
+                  onChange={(e) => updateNumericKey('longBreakDuration', e.target.value)}
+                  className="w-24"
+                />
+              </SettingRow>
+              <SettingRow label="长休息间隔 (番茄数)">
+                <Input
+                  type="number" min={1} max={10}
+                  value={readSetting(settings, 'longBreakInterval', '4')}
+                  onChange={(e) => updateNumericKey('longBreakInterval', e.target.value)}
+                  className="w-24"
+                />
+              </SettingRow>
+            </CardContent>
+          </Card>
 
-      <Card className="border-blue-200/70 dark:border-blue-900/50">
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">数据同步</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SyncSettings />
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader className="px-4 pt-4 pb-3">
+              <CardTitle className="text-sm font-medium">通知设置</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 px-4 pb-4 pt-0">
+              <SettingRow label="声音提醒">
+                <Checkbox
+                  checked={readSetting(settings, 'soundEnabled', 'true') === 'true'}
+                  onCheckedChange={(v) => updateKey('soundEnabled', v ? 'true' : 'false')}
+                />
+              </SettingRow>
+              <SettingRow label="系统通知">
+                <Checkbox
+                  checked={readSetting(settings, 'notificationEnabled', 'true') === 'true'}
+                  onCheckedChange={(v) => updateKey('notificationEnabled', v ? 'true' : 'false')}
+                />
+              </SettingRow>
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">通知设置</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <Label>声音提醒</Label>
-            <Checkbox
-              checked={readSetting(settings, 'soundEnabled', 'true') === 'true'}
-              onCheckedChange={(v) => updateKey('soundEnabled', v ? 'true' : 'false')}
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label>系统通知</Label>
-            <Checkbox
-              checked={readSetting(settings, 'notificationEnabled', 'true') === 'true'}
-              onCheckedChange={(v) => updateKey('notificationEnabled', v ? 'true' : 'false')}
-            />
-          </div>
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader className="px-4 pt-4 pb-3">
+              <CardTitle className="text-sm font-medium">数据管理</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 px-4 pb-4 pt-0">
+              <div className="grid grid-cols-2 gap-3">
+                <Button onClick={handleExport} variant="outline" className="w-full">
+                  导出数据
+                </Button>
+                <Button onClick={handleImport} variant="outline" className="w-full">
+                  导入数据
+                </Button>
+              </div>
+              <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+                导出为 JSON 格式，可用于备份或迁移数据。导入时选择"替换"将清空现有数据，"合并"将保留现有数据。
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">外观</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <Label>暗色模式</Label>
-            <Checkbox
-              checked={readSetting(settings, 'darkMode', 'false') === 'true'}
-              onCheckedChange={(v) => updateKey('darkMode', v ? 'true' : 'false')}
-            />
-          </div>
-        </CardContent>
-      </Card>
+        <div className="grid gap-4">
+          <Card className="border-blue-200/70 dark:border-blue-900/50">
+            <CardHeader className="px-4 pt-4 pb-3">
+              <CardTitle className="text-sm font-medium">数据同步</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-0">
+              <SyncSettings />
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">高级</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <Label>开机自启动</Label>
-            <Checkbox
-              checked={readSetting(settings, 'autoStart', 'false') === 'true'}
-              onCheckedChange={(v) => updateKey('autoStart', v ? 'true' : 'false')}
-            />
-          </div>
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader className="px-4 pt-4 pb-3">
+              <CardTitle className="text-sm font-medium">外观</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 px-4 pb-4 pt-0">
+              <SettingRow label="暗色模式">
+                <Checkbox
+                  checked={readSetting(settings, 'darkMode', 'false') === 'true'}
+                  onCheckedChange={(v) => updateKey('darkMode', v ? 'true' : 'false')}
+                />
+              </SettingRow>
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">数据管理</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <div className="flex gap-3">
-            <Button onClick={handleExport} variant="outline" className="flex-1">
-              导出数据
-            </Button>
-            <Button onClick={handleImport} variant="outline" className="flex-1">
-              导入数据
-            </Button>
-          </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            导出为 JSON 格式，可用于备份或迁移数据。导入时选择"替换"将清空现有数据，"合并"将保留现有数据。
-          </p>
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader className="px-4 pt-4 pb-3">
+              <CardTitle className="text-sm font-medium">高级</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 px-4 pb-4 pt-0">
+              <SettingRow label="开机自启动">
+                <Checkbox
+                  checked={readSetting(settings, 'autoStart', 'false') === 'true'}
+                  onCheckedChange={(v) => updateKey('autoStart', v ? 'true' : 'false')}
+                />
+              </SettingRow>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

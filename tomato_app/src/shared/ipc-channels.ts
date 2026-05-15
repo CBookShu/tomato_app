@@ -48,7 +48,6 @@ export const IPC = {
   // Task notes
   NOTES_GET: 'notes:get',
   NOTES_SAVE: 'notes:save',
-  NOTES_DELETE: 'notes:delete',
 
   // Groups
   GROUP_CREATE: 'group:create',
@@ -66,7 +65,6 @@ export const IPC = {
   SETTINGS_GET: 'settings:get',
   SETTINGS_SET: 'settings:set',
   SETTINGS_GET_ALL: 'settings:getAll',
-  SETTINGS_DELETE: 'settings:delete',
 
   // Data
   DATA_EXPORT: 'data:export',
@@ -109,7 +107,6 @@ export interface IpcChannelMap {
 
   [IPC.NOTES_GET]: { request: { taskId: string }; response: string | null };
   [IPC.NOTES_SAVE]: { request: { taskId: string; content: string }; response: void };
-  [IPC.NOTES_DELETE]: { request: { taskId: string }; response: void };
 
   [IPC.GROUP_CREATE]: { request: { input: NewTaskGroup }; response: TaskGroup };
   [IPC.GROUP_GET]: { request: { id: string }; response: TaskGroup | null };
@@ -124,7 +121,6 @@ export interface IpcChannelMap {
   [IPC.SETTINGS_GET]: { request: { key: string; defaultValue?: string }; response: string | null };
   [IPC.SETTINGS_SET]: { request: { key: string; value: string }; response: void };
   [IPC.SETTINGS_GET_ALL]: { request: void; response: Record<string, string> };
-  [IPC.SETTINGS_DELETE]: { request: { key: string }; response: void };
 
   // Data export/import
   [IPC.DATA_EXPORT]: { request: void; response: ExportData };

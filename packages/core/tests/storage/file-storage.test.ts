@@ -67,14 +67,12 @@ describe('FileStorage', () => {
     expect(files).toContain('b.yaml');
   });
 
-  test('clearAll removes current and legacy storage directories', async () => {
+  test('clearAll removes current storage directories', async () => {
     await storage.writeFile('.meta/config.yaml', 'pomodoroDuration: 25\n');
     await storage.writeFile('tasks/task-1.yaml', 'id: task-1\n');
     await storage.writeFile('groups/group-1.yaml', 'id: group-1\n');
     await storage.writeFile('notes/task-1.md', '# notes\n');
     await storage.writeFile('stats/2026-05-11.yaml', 'totalPomodoros: 1\n');
-    await storage.writeFile('meta/config.yaml', 'legacy: true\n');
-    await storage.writeFile('tasks-notes/task-1.md', 'legacy: true\n');
 
     await storage.clearAll();
 
@@ -83,7 +81,5 @@ describe('FileStorage', () => {
     await expect(storage.fileExists('groups/group-1.yaml')).resolves.toBe(false);
     await expect(storage.fileExists('notes/task-1.md')).resolves.toBe(false);
     await expect(storage.fileExists('stats/2026-05-11.yaml')).resolves.toBe(false);
-    await expect(storage.fileExists('meta/config.yaml')).resolves.toBe(false);
-    await expect(storage.fileExists('tasks-notes/task-1.md')).resolves.toBe(false);
   });
 });

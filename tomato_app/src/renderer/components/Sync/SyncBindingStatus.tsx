@@ -34,7 +34,7 @@ export function SyncBindingStatus() {
 
   return (
     <Card className="border-dashed">
-      <CardHeader className="pb-3">
+      <CardHeader className="px-4 pt-4 pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
             <CardTitle className="text-sm font-medium">绑定状态</CardTitle>
@@ -51,7 +51,7 @@ export function SyncBindingStatus() {
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 px-4 pb-4 pt-0">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span
             className={`rounded-full px-2 py-1 ${

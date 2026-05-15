@@ -26,9 +26,11 @@ export function RepositoryField({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <div className="space-y-2">
-        <Label htmlFor="remote-url">远程地址</Label>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-1.5">
+        <Label htmlFor="remote-url" className="text-sm text-gray-700 dark:text-gray-200">
+          远程地址
+        </Label>
         <Input
           id="remote-url"
           value={remoteUrl}
@@ -41,9 +43,11 @@ export function RepositoryField({
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="remote-branch">目标分支</Label>
-        <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="space-y-1.5">
+        <Label htmlFor="remote-branch" className="text-sm text-gray-700 dark:text-gray-200">
+          目标分支
+        </Label>
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
           <Input
             id="remote-branch"
             value={remoteBranch}
@@ -53,7 +57,7 @@ export function RepositoryField({
             autoCapitalize="off"
             autoComplete="off"
             spellCheck={false}
-            className="flex-1"
+            className="min-w-0"
           />
           <Button type="submit" disabled={disabled}>
             绑定远程
@@ -61,7 +65,7 @@ export function RepositoryField({
         </div>
       </div>
 
-      <p className="text-xs text-gray-500 dark:text-gray-400">
+      <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
         请输入一个本机可以访问的 Git 远程地址和要同步的分支。绑定后，应用会先以本地数据为准，再与远程进行同步。
       </p>
     </form>

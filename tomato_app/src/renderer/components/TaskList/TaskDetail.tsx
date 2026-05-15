@@ -2,7 +2,7 @@ import { useTaskStore } from '@/stores/task-store.js';
 import { useTimerStart } from '@/hooks/useTimerStart.js';
 import { Button } from '@/components/ui/button.js';
 import { Play, CheckCircle } from 'lucide-react';
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useIpc } from '@/hooks/useIpc.js';
 import { IPC } from '@shared/ipc-channels.js';
 import MDEditor from '@uiw/react-md-editor';
@@ -32,6 +32,8 @@ export function TaskDetail() {
   const [lastSavedNotes, setLastSavedNotes] = useState<string | null>(null);
   const [isNotesLoaded, setIsNotesLoaded] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const notesSessionRef = useRef(0);
+  const saveRequestRef = useRef(0);
 
   // Debounced notes for auto-save
   const debouncedNotes = useDebounce(notes, AUTO_SAVE_DELAY_MS);
@@ -39,6 +41,8 @@ export function TaskDetail() {
   // Sync notes with selected task
   useEffect(() => {
     let cancelled = false;
+    ++notesSessionRef.current;
+    saveRequestRef.current = 0;
 
     if (task) {
       setNotes('');
@@ -91,6 +95,9 @@ export function TaskDetail() {
   }, [task?.id]);
 
   const handleSaveNotes = useCallback(async (taskId: string, value: string) => {
+    const sessionId = notesSessionRef.current;
+    const requestId = ++saveRequestRef.current;
+
     setIsSaving(true);
     setSaveError(null);
     try {
@@ -99,12 +106,18 @@ export function TaskDetail() {
         content: value,
       });
 
-      setLastSavedNotes(value);
+      if (sessionId === notesSessionRef.current && requestId === saveRequestRef.current) {
+        setLastSavedNotes(value);
+      }
     } catch (error) {
       console.error('Failed to save notes:', error);
-      setSaveError('保存失败');
+      if (sessionId === notesSessionRef.current && requestId === saveRequestRef.current) {
+        setSaveError('保存失败');
+      }
     } finally {
-      setIsSaving(false);
+      if (sessionId === notesSessionRef.current && requestId === saveRequestRef.current) {
+        setIsSaving(false);
+      }
     }
   }, [invoke]);
 

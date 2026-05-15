@@ -46,9 +46,8 @@ test.describe('基础验收：设置持久化', () => {
     expect(persistedSettings.pomodoroDuration).toBe('30');
   });
 
-  test('兼容 legacy key 读取并在写入后迁移到 canonical key', async ({ page }) => {
+  test('legacy key 会被忽略，界面只读取 canonical key', async ({ page }) => {
     await page.evaluate(async ({ settingsSetChannel }) => {
-      await window.electronAPI.invoke(settingsSetChannel, { key: 'pomodoroDuration', value: '25' });
       await window.electronAPI.invoke(settingsSetChannel, { key: 'pomodoro_duration', value: '31' });
     }, { settingsSetChannel: IPC.SETTINGS_SET });
 
@@ -58,7 +57,7 @@ test.describe('基础验收：设置持久化', () => {
 
     const pomodoroSetting = page.getByText('番茄时长 (分钟)').locator('..');
     const pomodoroInput = pomodoroSetting.getByRole('spinbutton');
-    await expect(pomodoroInput).toHaveValue('31');
+    await expect(pomodoroInput).toHaveValue('25');
 
     await pomodoroInput.fill('32');
     await expect.poll(async () => {
@@ -69,7 +68,7 @@ test.describe('基础验收：设置持久化', () => {
       };
     }).toEqual({
       pomodoroDuration: '32',
-      pomodoro_duration: null,
+      pomodoro_duration: '31',
     });
 
     await page.reload();
@@ -79,6 +78,6 @@ test.describe('基础验收：设置持久化', () => {
 
     const persistedSettings = await readSettings(page);
     expect(persistedSettings.pomodoroDuration).toBe('32');
-    expect(persistedSettings.pomodoro_duration).toBeUndefined();
+    expect(persistedSettings.pomodoro_duration).toBe('31');
   });
 });

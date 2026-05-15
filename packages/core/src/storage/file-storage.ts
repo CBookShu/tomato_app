@@ -66,8 +66,7 @@ export class FileStorage {
   }
 
   async clearAll(): Promise<void> {
-    // Delete current storage directories plus older leftover folders.
-    const subdirs = ['.meta', 'tasks', 'groups', 'notes', 'stats', 'meta', 'tasks-notes'];
+    const subdirs = ['.meta', 'tasks', 'groups', 'notes', 'stats'];
     for (const subdir of subdirs) {
       const fullPath = path.join(this.baseDir, subdir);
       try {
