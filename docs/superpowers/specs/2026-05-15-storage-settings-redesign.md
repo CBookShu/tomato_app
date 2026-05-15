@@ -58,25 +58,28 @@
 flowchart TD
   A[本地数据根目录] --> B[".meta/"]
   A --> C["tasks/"]
-  A --> D["notes/"]
-  A --> E["stats/"]
+  A --> D["groups/"]
+  A --> E["notes/"]
+  A --> F["stats/"]
 
   B --> B1["app 状态 / 配置 / 同步元数据"]
   C --> C1["任务结构化元数据"]
-  D --> D1["任务笔记正文"]
-  E --> E1["统计数据"]
+  D --> D1["分组结构化元数据"]
+  E --> E1["任务笔记正文"]
+  F --> F1["统计数据"]
 
   C1 --> C2["短字段：title / status / groupId / timestamps / tags"]
-  D1 --> D2["长文本、Markdown、频繁编辑内容"]
+  E1 --> E2["长文本、Markdown、频繁编辑内容"]
 ```
 
 ### 目录规则
 
 - `.meta/` 只保存 app 状态类数据
 - `tasks/` 保存任务结构化数据
+- `groups/` 保存分组结构化数据
 - `notes/` 保存任务笔记正文
 - `stats/` 保存统计数据
-- `tasks/` 和 `notes/` 都属于玩家可编辑数据，不能再落回 `.meta/`
+- `tasks/`、`groups/` 和 `notes/` 都属于玩家可编辑数据，不能再落回 `.meta/`
 
 ### 文件格式
 
@@ -88,6 +91,9 @@ flowchart TD
   - 只放任务笔记正文
   - 支持频繁 autosave
   - 作为独立文件参与 Git diff 和冲突处理
+- `groups/{groupId}.yaml`
+  - 只放分组结构化元数据
+  - 不放任务正文或笔记内容
 
 ### `.meta/` 允许保存的内容
 
