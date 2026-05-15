@@ -30,11 +30,10 @@ export class SyncManager {
 
   async pullChanges(): Promise<SyncResult> {
     try {
-      const result = await this.git.pull(true, this.remoteName, this.remoteBranch);
+      await this.git.fetch(this.remoteName);
+      const result = await this.git.merge(`${this.remoteName}/${this.remoteBranch}`);
 
       if (result.hasConflicts) {
-        // Abort rebase and create backup branch
-        await this.git.rebaseAbort();
         const conflictBranch = await this.createBackupBranch();
 
         return {
@@ -112,7 +111,8 @@ export class SyncManager {
   }
 
   async resolveConflictAndSync(): Promise<SyncResult> {
-    return this.sync();
+    await this.commitChanges('sync: conflict resolution');
+    return this.pushChanges();
   }
 
   async getStatus(): Promise<{ isClean: boolean; ahead: number; behind: number }> {

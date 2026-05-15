@@ -52,7 +52,8 @@ test.describe('基础验收：同步绑定', () => {
     await expect(page.getByLabel('目标分支')).toHaveValue('main');
     await expect(page.getByText('有冲突', { exact: true })).toBeVisible();
     await expect(page.locator('div').filter({ hasText: /^local-backup-20260514-090000-abc12345$/ }).last()).toBeVisible();
-    await expect(page.getByText('当前冲突已保留本地分支和工作区。请先在本地处理冲突，再点击“手动处理后继续同步”。')).toBeVisible();
+    await expect(page.getByText('处理顺序很简单：')).toBeVisible();
+    await expect(page.getByText('git status')).toBeVisible();
     await expect(page.getByRole('button', { name: '手动处理后继续同步' })).toBeVisible();
 
     await page.getByRole('button', { name: '手动处理后继续同步' }).click();

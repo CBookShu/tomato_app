@@ -44,12 +44,12 @@ export function ConflictPrompt({ onClose }: ConflictPromptProps) {
 
         <p className="mb-4 text-gray-600 dark:text-gray-300">
           {repoLabel} 在 <span className="font-medium">{remoteBranch || 'main'}</span> 上出现冲突。
-          本地状态已保存到备份分支，您可以先处理冲突再继续同步。
+          本地工作区已保留，当前需要先在这份工作区里手动解决冲突，再继续同步。
         </p>
 
         <div className="space-y-2 rounded-md border border-gray-200 bg-gray-50 p-3 text-sm dark:border-gray-700 dark:bg-gray-800/60">
           <div>
-            <span className="text-gray-500 dark:text-gray-400">冲突备份分支：</span>
+            <span className="text-gray-500 dark:text-gray-400">冲突备份分支（仅保留，不建议直接 merge）：</span>
             <div className="font-mono text-gray-800 dark:text-gray-100">{conflictBranch}</div>
           </div>
           <div>
@@ -64,9 +64,21 @@ export function ConflictPrompt({ onClose }: ConflictPromptProps) {
           )}
         </div>
 
-        <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">
-          当前冲突已保留本地分支和工作区。请先在本地处理冲突，再点击“手动处理后继续同步”。
-        </p>
+        <div className="mt-4 space-y-2 text-sm text-gray-600 dark:text-gray-300">
+          <p>处理顺序很简单：</p>
+          <ol className="list-decimal space-y-1 pl-5">
+            <li>
+              打开数据目录里的仓库，运行 <span className="font-mono">git status</span> 看哪些文件冲突。
+            </li>
+            <li>
+              在当前工作区修改这些文件，删掉冲突标记并保留你想要的内容。
+            </li>
+            <li>
+              运行 <span className="font-mono">git add .</span>，然后 <span className="font-mono">git commit</span> 完成这次合并。
+            </li>
+            <li>回到 App，点击“手动处理后继续同步”。</li>
+          </ol>
+        </div>
 
         <div className="mt-6">
           <Button onClick={handleResolveManually} variant="outline" className="w-full">
@@ -74,7 +86,7 @@ export function ConflictPrompt({ onClose }: ConflictPromptProps) {
           </Button>
         </div>
 
-        <p className="mt-4 text-xs text-gray-400">提示：完成本地修改后，再继续同步即可。</p>
+        <p className="mt-4 text-xs text-gray-400">提示：备份分支只是保险，不建议直接拿它去 merge。</p>
       </div>
     </div>
   );

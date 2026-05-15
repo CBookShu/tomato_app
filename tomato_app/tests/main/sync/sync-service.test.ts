@@ -196,6 +196,50 @@ describe('SyncService', () => {
     });
   });
 
+  test('bindRepository does not create another backup branch while the same conflict is unresolved', async () => {
+    const service = new SyncService({
+      bindingStore,
+      gitFactory,
+      syncManagerFactory,
+      storage: {} as any,
+      dataDirProvider: () => '/tmp/tomato-data',
+    } as any);
+
+    await service.seedTestState({
+      isLoggedIn: true,
+      isBound: true,
+      remoteUrl: 'https://example.com/team/tomato.git',
+      remoteLabel: 'https://example.com/team/tomato.git',
+      remoteBranch: 'main',
+      boundAt: '2026-05-14T07:50:00.000Z',
+      updatedAt: '2026-05-14T07:50:00.000Z',
+      syncStatus: 'conflict',
+      conflictBranch: 'local-backup-20260514-080000-abc12345',
+    });
+
+    gitFactory.mockClear();
+    syncManagerFactory.mockClear();
+    bindingStore.saveBinding.mockClear();
+
+    const result = await service.bindRepository('https://example.com/team/tomato.git', 'main');
+    const status = await service.getStatus();
+
+    expect(gitFactory).not.toHaveBeenCalled();
+    expect(syncManagerFactory).not.toHaveBeenCalled();
+    expect(bindingStore.saveBinding).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      success: false,
+      status: 'conflict',
+      conflictBranch: 'local-backup-20260514-080000-abc12345',
+    });
+    expect(status).toMatchObject({
+      syncStatus: 'conflict',
+      conflictBranch: 'local-backup-20260514-080000-abc12345',
+      remoteUrl: 'https://example.com/team/tomato.git',
+      remoteBranch: 'main',
+    });
+  });
+
   test('unbindRepository clears the generic binding state', async () => {
     storedBinding = {
       remoteUrl: 'https://example.com/team/tomato.git',

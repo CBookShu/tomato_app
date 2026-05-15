@@ -1,16 +1,17 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import { SyncManager } from '../../src/sync/sync-manager.js';
 
-test('pullChanges creates a backup branch when git reports a conflict', async () => {
+test('pullChanges uses merge and keeps the working tree for manual conflict resolution', async () => {
   const git = {
-    pull: jest.fn<(...args: unknown[]) => Promise<{ success: boolean; hasConflicts: boolean }>>().mockResolvedValue({ success: false, hasConflicts: true }),
+    pull: jest.fn(),
+    fetch: jest.fn<(...args: unknown[]) => Promise<void>>().mockResolvedValue(undefined),
+    merge: jest.fn<(...args: unknown[]) => Promise<{ success: boolean; hasConflicts: boolean }>>().mockResolvedValue({ success: false, hasConflicts: true }),
     rebaseAbort: jest.fn<() => Promise<void>>(),
     createBranch: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     status: jest.fn<() => Promise<{ isClean: () => boolean; ahead: number; behind: number }>>().mockResolvedValue({ isClean: () => true, ahead: 0, behind: 0 }),
     hasChanges: jest.fn<() => Promise<boolean>>().mockResolvedValue(false),
     add: jest.fn(),
     commit: jest.fn(),
-    fetch: jest.fn(),
     resetHard: jest.fn(),
     currentBranch: jest.fn<() => Promise<string>>().mockResolvedValue('main'),
     push: jest.fn<(...args: unknown[]) => Promise<void>>().mockResolvedValue(undefined),
@@ -21,10 +22,11 @@ test('pullChanges creates a backup branch when git reports a conflict', async ()
 
   const result = await manager.pullChanges();
 
-  expect(git.pull).toHaveBeenCalledWith(true, 'origin', 'main');
+  expect(git.fetch).toHaveBeenCalledWith('origin');
+  expect(git.merge).toHaveBeenCalledWith('origin/main');
   expect(result.status).toBe('conflict');
   expect(result.conflictBranch).toMatch(/^local-backup-/);
-  expect(git.rebaseAbort).toHaveBeenCalled();
+  expect(git.rebaseAbort).not.toHaveBeenCalled();
   expect(git.createBranch).toHaveBeenCalled();
   jest.useRealTimers();
 });
@@ -38,7 +40,6 @@ test('pushChanges uses the configured remote and branch', async () => {
     hasChanges: jest.fn<() => Promise<boolean>>().mockResolvedValue(false),
     add: jest.fn(),
     commit: jest.fn(),
-    fetch: jest.fn(),
     resetHard: jest.fn(),
     currentBranch: jest.fn<() => Promise<string>>().mockResolvedValue('main'),
     push: jest.fn<(...args: unknown[]) => Promise<void>>().mockResolvedValue(undefined),
@@ -53,14 +54,15 @@ test('pushChanges uses the configured remote and branch', async () => {
 
 test('sync pushes committed local state after pull even when the working tree is clean', async () => {
   const git = {
-    pull: jest.fn<(...args: unknown[]) => Promise<{ success: boolean; hasConflicts: boolean }>>().mockResolvedValue({ success: true, hasConflicts: false }),
+    pull: jest.fn(),
+    fetch: jest.fn<(...args: unknown[]) => Promise<void>>().mockResolvedValue(undefined),
+    merge: jest.fn<(...args: unknown[]) => Promise<{ success: boolean; hasConflicts: boolean }>>().mockResolvedValue({ success: true, hasConflicts: false }),
     rebaseAbort: jest.fn(),
     createBranch: jest.fn(),
     status: jest.fn<() => Promise<{ isClean: () => boolean; ahead: number; behind: number }>>().mockResolvedValue({ isClean: () => true, ahead: 0, behind: 0 }),
     hasChanges: jest.fn<() => Promise<boolean>>().mockResolvedValue(false),
     add: jest.fn(),
     commit: jest.fn(),
-    fetch: jest.fn(),
     resetHard: jest.fn(),
     currentBranch: jest.fn<() => Promise<string>>().mockResolvedValue('main'),
     push: jest.fn<(...args: unknown[]) => Promise<void>>().mockResolvedValue(undefined),
@@ -70,12 +72,14 @@ test('sync pushes committed local state after pull even when the working tree is
 
   await manager.sync();
 
+  expect(git.fetch).toHaveBeenCalledWith('origin');
+  expect(git.merge).toHaveBeenCalledWith('origin/main');
   expect(git.push).toHaveBeenCalledWith('origin', 'main:main');
 });
 
-test('resolveConflictAndSync pushes the currently checked-out branch to the remote branch', async () => {
+test('resolveConflictAndSync commits the resolved branch and pushes without pulling again', async () => {
   const git = {
-    pull: jest.fn<(...args: unknown[]) => Promise<{ success: boolean; hasConflicts: boolean }>>().mockResolvedValue({ success: true, hasConflicts: false }),
+    pull: jest.fn(),
     rebaseAbort: jest.fn(),
     createBranch: jest.fn(),
     status: jest.fn<() => Promise<{ isClean: () => boolean; ahead: number; behind: number }>>().mockResolvedValue({ isClean: () => false, ahead: 0, behind: 0 }),
@@ -93,7 +97,7 @@ test('resolveConflictAndSync pushes the currently checked-out branch to the remo
   await manager.resolveConflictAndSync();
 
   expect(git.add).toHaveBeenCalledWith('.');
-  expect(git.commit).toHaveBeenCalledWith('sync: local changes before pull');
-  expect(git.pull).toHaveBeenCalledWith(true, 'origin', 'main');
+  expect(git.commit).toHaveBeenCalledWith('sync: conflict resolution');
+  expect(git.pull).not.toHaveBeenCalled();
   expect(git.push).toHaveBeenCalledWith('origin', 'local-backup-2026-05-13:main');
 });

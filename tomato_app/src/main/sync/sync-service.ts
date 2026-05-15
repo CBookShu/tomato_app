@@ -236,6 +236,24 @@ export class SyncService {
   }
 
   async bindRepository(remoteUrl: string, remoteBranch: string): Promise<SyncResult> {
+    const normalizedRemoteUrl = remoteUrl.trim();
+    const normalizedRemoteBranch = remoteBranch.trim();
+    const activeBinding = await this.ensureBindingLoaded();
+
+    if (
+      this.syncStatus === 'conflict'
+      && this.conflictBranch
+      && activeBinding
+      && activeBinding.remoteUrl === normalizedRemoteUrl
+      && activeBinding.remoteBranch === normalizedRemoteBranch
+    ) {
+      return {
+        success: false,
+        status: 'conflict',
+        conflictBranch: this.conflictBranch,
+      };
+    }
+
     const binding = createBindingRecord(remoteUrl, remoteBranch);
 
     await this.ensureRuntime(binding, { prepareBranch: true });

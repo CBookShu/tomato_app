@@ -105,6 +105,40 @@ describe('syncStore', () => {
     });
   });
 
+  test('bindRepository refreshes repository metadata when the bridge reports a conflict', async () => {
+    syncApi.bindRepository.mockResolvedValue({
+      success: false,
+      status: 'conflict',
+      conflictBranch: 'local-backup-2026-05-13-aaaa1111',
+    });
+    syncApi.getStatus.mockResolvedValue({
+      ...baseStatus,
+      isBound: true,
+      repositoryUrl: 'https://github.com/CBookShu/note_0513.git',
+      remoteLabel: 'https://github.com/CBookShu/note_0513.git',
+      remoteBranch: 'main',
+      boundAt: '2026-05-13T12:00:00.000Z',
+      updatedAt: '2026-05-13T12:20:00.000Z',
+      syncStatus: 'conflict',
+      lastSyncTime: '2026-05-13T12:20:00.000Z',
+      conflictBranch: 'local-backup-2026-05-13-aaaa1111',
+    });
+
+    await useSyncStore.getState().bindRepository('https://github.com/CBookShu/note_0513.git', 'main');
+
+    expect(syncApi.bindRepository).toHaveBeenCalledWith('https://github.com/CBookShu/note_0513.git', 'main');
+    expect(syncApi.getStatus).toHaveBeenCalledTimes(1);
+    expect(useSyncStore.getState()).toMatchObject({
+      status: 'conflict',
+      isBound: true,
+      repositoryUrl: 'https://github.com/CBookShu/note_0513.git',
+      remoteLabel: 'https://github.com/CBookShu/note_0513.git',
+      remoteBranch: 'main',
+      conflictBranch: 'local-backup-2026-05-13-aaaa1111',
+      lastSyncTime: '2026-05-13T12:20:00.000Z',
+    });
+  });
+
   test('unbindRepository clears binding state but preserves the data directory', async () => {
     useSyncStore.setState({
       isBound: true,

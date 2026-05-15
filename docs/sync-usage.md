@@ -25,18 +25,18 @@ git --version
 
 ### 1.2 选择一种 GitHub 认证方式
 
-如果你要绑定的是 GitHub HTTPS 仓库，推荐先准备下面任意一种方式：
+如果你要绑定的是 GitHub 仓库，先把本机 Git 认证准备好。可选方式有：
 
-- `gh auth login`
-- Git Credential Manager
-- SSH key
-- Personal Access Token
+- `gh auth login`，适合 HTTPS
+- Git Credential Manager，适合 HTTPS
+- Personal Access Token，适合 HTTPS
+- SSH key，适合 SSH
 
 注意：
 
 - App **不会**在内部打开 GitHub 授权页
 - App **不会**要求你填写 OAuth `client ID`
-- 绑定失败时，通常是本机 Git 还没有可用的认证方式
+- App 绑定时只会调用本机已经准备好的 Git 认证链
 
 ### 1.3 验证本机认证
 
@@ -44,24 +44,38 @@ git --version
 
 #### 方式 A：GitHub CLI
 
-如果你安装了 `gh`：
+如果你安装了 `gh`，先检查状态：
 
 ```bash
 gh auth status
 ```
 
-如果没有登录，先执行：
+如果没有登录，执行：
 
 ```bash
-gh auth login
+gh auth login -h github.com --git-protocol https
+```
+
+登录完成后，再执行一次：
+
+```bash
+gh auth status
 ```
 
 #### 方式 B：直接验证仓库访问
 
-用你准备绑定的远程地址做一次 Git 测试：
+用你准备绑定的远程地址做一次 Git 测试。
+
+HTTPS 仓库示例：
 
 ```bash
-git ls-remote https://github.com/CBookShu/note_0513 HEAD
+git ls-remote https://github.com/<owner>/<repo>.git HEAD
+```
+
+SSH 仓库示例：
+
+```bash
+git ls-remote git@github.com:<owner>/<repo>.git HEAD
 ```
 
 如果认证已经准备好，这条命令应该能正常返回远端信息。  
@@ -81,6 +95,22 @@ ssh -T git@github.com
 
 如果返回的是 GitHub 的欢迎信息或认证成功提示，说明 SSH 认证可用。
 
+### 1.4 先做一次终端侧验收
+
+推荐在打开 App 之前，先确认下面至少一条命令能成功：
+
+```bash
+git ls-remote https://github.com/<owner>/<repo>.git HEAD
+```
+
+或者：
+
+```bash
+git ls-remote git@github.com:<owner>/<repo>.git HEAD
+```
+
+这一步通过后，App 里的 `绑定远程` 才有条件成功。
+
 ## 2. 在 App 里绑定仓库
 
 ### 2.1 打开同步设置
@@ -99,7 +129,7 @@ ssh -T git@github.com
 
 例如：
 
-- 远程地址：`https://github.com/CBookShu/note_0513`
+- 远程地址：`https://github.com/<owner>/<repo>.git`
 - 目标分支：`main`
 
 ### 2.3 点击“绑定远程”
@@ -147,11 +177,15 @@ App 会尽量保持本地数据优先：
 
 处理方式：
 
-1. 先在本地解决冲突
-2. 保存修改
-3. 再点击 `手动处理后继续同步`
+1. 打开数据目录里的仓库，执行 `git status`
+2. 查看哪些文件带有冲突标记
+3. 在当前工作区把这些文件改好，删除冲突标记并保留你要的内容
+4. 执行 `git add .`
+5. 执行 `git commit` 完成这次合并
+6. 回到 App，再点击 `手动处理后继续同步`
 
 App 不会自动把你的本地内容清空，也不会自动覆盖成远端版本。
+冲突备份分支只是保险，不建议直接把它拿去 merge。
 
 ### 3.3 解绑仓库
 
@@ -209,14 +243,20 @@ App 不会自动把你的本地内容清空，也不会自动覆盖成远端版�
 
 如果你要绑定这个仓库：
 
-- 远程地址：`https://github.com/CBookShu/note_0513`
+- HTTPS 远程地址：`https://github.com/<owner>/<repo>.git`
+- SSH 远程地址：`git@github.com:<owner>/<repo>.git`
 - 目标分支：`main`
 
 先在终端确认这条命令可用：
 
 ```bash
-git ls-remote https://github.com/CBookShu/note_0513 HEAD
+git ls-remote https://github.com/<owner>/<repo>.git HEAD
+```
+
+如果你用的是 SSH，再确认：
+
+```bash
+git ls-remote git@github.com:<owner>/<repo>.git HEAD
 ```
 
 如果能正常返回结果，再回到 App 里点击 `绑定远程`。
-

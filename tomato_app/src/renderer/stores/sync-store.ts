@@ -94,11 +94,7 @@ export const useSyncStore = create<SyncState & SyncActions>((set, get) => ({
       if (result.success) {
         await get().getStatus();
       } else if (result.status === 'conflict') {
-        set({
-          status: 'conflict',
-          conflictBranch: result.conflictBranch || null,
-          error: null,
-        });
+        await get().getStatus();
       } else {
         set({
           status: 'error',
@@ -137,11 +133,7 @@ export const useSyncStore = create<SyncState & SyncActions>((set, get) => ({
           conflictBranch: null,
         });
       } else if (result.status === 'conflict') {
-        set({
-          status: 'conflict',
-          conflictBranch: result.conflictBranch || null,
-          error: null,
-        });
+        await get().getStatus();
       } else {
         set({
           status: 'error',
@@ -171,11 +163,7 @@ export const useSyncStore = create<SyncState & SyncActions>((set, get) => ({
           conflictBranch: null,
         });
       } else if (result.status === 'conflict') {
-        set({
-          status: 'conflict',
-          conflictBranch: result.conflictBranch || null,
-          error: null,
-        });
+        await get().getStatus();
       } else {
         set({
           status: 'error',

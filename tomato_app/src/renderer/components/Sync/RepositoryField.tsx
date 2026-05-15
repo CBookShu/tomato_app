@@ -33,7 +33,7 @@ export function RepositoryField({
           id="remote-url"
           value={remoteUrl}
           onChange={(event) => onRemoteUrlChange(event.target.value)}
-          placeholder="https://example.com/team/tomato.git"
+          placeholder="https://github.com/<owner>/<repo>.git"
           disabled={disabled}
           autoCapitalize="off"
           autoComplete="off"
