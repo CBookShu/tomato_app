@@ -38,8 +38,8 @@ export class GroupFileRepository implements ITaskGroupRepository {
   constructor(private storage: FileStorage) {}
 
   async findAll(): Promise<TaskGroup[]> {
-    await this.storage.ensureDir('.meta/entities/groups');
-    const files = await this.storage.listFiles('.meta/entities/groups');
+    await this.storage.ensureDir('groups');
+    const files = await this.storage.listFiles('groups');
     const groups: TaskGroup[] = [];
 
     for (const file of files) {

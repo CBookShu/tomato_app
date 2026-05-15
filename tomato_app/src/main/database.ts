@@ -33,9 +33,9 @@ export async function initStorage(): Promise<StorageContext> {
   await fs.mkdir(dataDir, { recursive: true });
   const paths = getStoragePaths(dataDir);
   await fs.mkdir(paths.meta, { recursive: true });
-  await fs.mkdir(paths.groups, { recursive: true });
   await fs.mkdir(paths.tasks, { recursive: true });
-  await fs.mkdir(paths.tasksNotes, { recursive: true });
+  await fs.mkdir(paths.groups, { recursive: true });
+  await fs.mkdir(path.join(dataDir, 'notes'), { recursive: true });
   await fs.mkdir(paths.stats, { recursive: true });
 
   const storage = new FileStorage(dataDir);

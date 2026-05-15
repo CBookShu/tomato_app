@@ -29,7 +29,7 @@ describe('NotesStorage', () => {
   test('saveNotes creates notes file', async () => {
     await notes.saveNotes('task-123', 'My notes');
 
-    const content = await storage.readFile('tasks/task-123.md');
+    const content = await storage.readFile('notes/task-123.md');
     expect(content).toBe('My notes');
   });
 

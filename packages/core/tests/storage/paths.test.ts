@@ -9,19 +9,18 @@ describe('Storage Paths', () => {
     const paths = getStoragePaths(baseDir);
     expect(paths.base).toBe(baseDir);
     expect(paths.meta).toBe(`${baseDir}/.meta`);
-    expect(paths.entities).toBe(`${baseDir}/.meta/entities`);
-    expect(paths.groups).toBe(`${baseDir}/.meta/entities/groups`);
-    expect(paths.tasks).toBe(`${baseDir}/.meta/entities/tasks`);
-    expect(paths.tasksNotes).toBe(`${baseDir}/tasks`);
+    expect(paths.groups).toBe(`${baseDir}/groups`);
+    expect(paths.tasks).toBe(`${baseDir}/tasks`);
+    expect(paths.notes).toBe(`${baseDir}/notes`);
     expect(paths.stats).toBe(`${baseDir}/stats`);
   });
 
   test('getTaskPath returns correct path', () => {
-    expect(getTaskPath(baseDir, 'task-123')).toBe(`${baseDir}/.meta/entities/tasks/task-123.yaml`);
+    expect(getTaskPath(baseDir, 'task-123')).toBe(`${baseDir}/tasks/task-123.yaml`);
   });
 
   test('getGroupPath returns correct path', () => {
-    expect(getGroupPath(baseDir, 'group-456')).toBe(`${baseDir}/.meta/entities/groups/group-456.yaml`);
+    expect(getGroupPath(baseDir, 'group-456')).toBe(`${baseDir}/groups/group-456.yaml`);
   });
 
   test('getStatsPath returns correct path', () => {
@@ -33,6 +32,6 @@ describe('Storage Paths', () => {
   });
 
   test('getNotesPath returns correct path', () => {
-    expect(getNotesPath(baseDir, 'task-123')).toBe(`${baseDir}/tasks/task-123.md`);
+    expect(getNotesPath(baseDir, 'task-123')).toBe(`${baseDir}/notes/task-123.md`);
   });
 });

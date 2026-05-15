@@ -66,10 +66,8 @@ export class FileStorage {
   }
 
   async clearAll(): Promise<void> {
-    // Delete both current and legacy storage directories.
-    // Current layout: ".meta", "tasks", "stats"
-    // Legacy layout: "meta", "groups", "tasks-notes"
-    const subdirs = ['.meta', 'tasks', 'stats', 'meta', 'groups', 'tasks-notes'];
+    // Delete current storage directories plus older leftover folders.
+    const subdirs = ['.meta', 'tasks', 'groups', 'notes', 'stats', 'meta', 'tasks-notes'];
     for (const subdir of subdirs) {
       const fullPath = path.join(this.baseDir, subdir);
       try {

@@ -35,7 +35,7 @@ describe('GroupFileRepository', () => {
     const group = createTestGroup('group-123');
     await repo.create(group);
 
-    const content = await storage.readFile('.meta/entities/groups/group-123.yaml');
+    const content = await storage.readFile('groups/group-123.yaml');
     expect(content).toBeTruthy();
     expect(content).toContain('name: Test Group');
     expect(content).toContain('taskOrder: []');

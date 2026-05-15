@@ -2,10 +2,9 @@
 export interface StoragePaths {
   base: string;
   meta: string;
-  entities: string;
-  groups: string;
   tasks: string;
-  tasksNotes: string;
+  groups: string;
+  notes: string;
   stats: string;
 }
 
@@ -13,20 +12,19 @@ export function getStoragePaths(baseDir: string): StoragePaths {
   return {
     base: baseDir,
     meta: `${baseDir}/.meta`,
-    entities: `${baseDir}/.meta/entities`,
-    groups: `${baseDir}/.meta/entities/groups`,
-    tasks: `${baseDir}/.meta/entities/tasks`,
-    tasksNotes: `${baseDir}/tasks`,
+    tasks: `${baseDir}/tasks`,
+    groups: `${baseDir}/groups`,
+    notes: `${baseDir}/notes`,
     stats: `${baseDir}/stats`,
   };
 }
 
 export function getTaskPath(baseDir: string, taskId: string): string {
-  return `${baseDir}/.meta/entities/tasks/${taskId}.yaml`;
+  return `${baseDir}/tasks/${taskId}.yaml`;
 }
 
 export function getGroupPath(baseDir: string, groupId: string): string {
-  return `${baseDir}/.meta/entities/groups/${groupId}.yaml`;
+  return `${baseDir}/groups/${groupId}.yaml`;
 }
 
 export function getStatsPath(baseDir: string, date: string): string {
@@ -38,5 +36,5 @@ export function getConfigPath(baseDir: string): string {
 }
 
 export function getNotesPath(baseDir: string, taskId: string): string {
-  return `${baseDir}/tasks/${taskId}.md`;
+  return `${baseDir}/notes/${taskId}.md`;
 }

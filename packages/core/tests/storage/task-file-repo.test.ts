@@ -36,7 +36,7 @@ describe('TaskFileRepository', () => {
     const task = createTestTask('task-123');
     await repo.create(task);
 
-    const content = await storage.readFile('.meta/entities/tasks/task-123.yaml');
+    const content = await storage.readFile('tasks/task-123.yaml');
     expect(content).toBeTruthy();
     expect(content).toContain('title: Test Task');
   });
@@ -87,5 +87,30 @@ describe('TaskFileRepository', () => {
 
     const found = await repo.findById('task-123');
     expect(found).toBeNull();
+  });
+
+  test('ignores legacy notes field in task yaml', async () => {
+    await storage.writeFile(
+      'tasks/task-legacy.yaml',
+      [
+        'id: task-legacy',
+        'title: Legacy Task',
+        'status: todo',
+        'completedPomodoros: 0',
+        'createdAt: 2026-05-10T10:00:00Z',
+        'updatedAt: 2026-05-10T10:00:00Z',
+        'notes: legacy notes',
+      ].join('\n'),
+    );
+
+    const found = await repo.findById('task-legacy');
+
+    expect(found).toEqual(
+      expect.objectContaining({
+        id: 'task-legacy',
+        title: 'Legacy Task',
+      }),
+    );
+    expect(found).not.toHaveProperty('notes');
   });
 });

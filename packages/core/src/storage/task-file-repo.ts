@@ -9,7 +9,6 @@ interface TaskYaml {
   id: string;
   title: string;
   description?: string;
-  notes?: string;
   status: 'todo' | 'in-progress' | 'completed';
   groupId?: string;
   completedPomodoros: number;
@@ -25,7 +24,6 @@ function taskToYaml(task: Task): TaskYaml {
     id: task.id,
     title: task.title,
     description: task.description,
-    notes: task.notes,
     status: task.status,
     groupId: task.groupId,
     completedPomodoros: task.completedPomodoros,
@@ -42,7 +40,6 @@ function yamlToTask(yaml: TaskYaml): Task {
     id: yaml.id,
     title: yaml.title,
     description: yaml.description,
-    notes: yaml.notes,
     status: yaml.status,
     groupId: yaml.groupId,
     completedPomodoros: yaml.completedPomodoros,
@@ -58,8 +55,8 @@ export class TaskFileRepository implements ITaskRepository {
   constructor(private storage: FileStorage) {}
 
   async findAll(): Promise<Task[]> {
-    await this.storage.ensureDir('.meta/entities/tasks');
-    const files = await this.storage.listFiles('.meta/entities/tasks');
+    await this.storage.ensureDir('tasks');
+    const files = await this.storage.listFiles('tasks');
     const tasks: Task[] = [];
 
     for (const file of files) {
