@@ -9,6 +9,7 @@ import { useIpc } from '@/hooks/useIpc.js';
 import { IPC } from '@shared/ipc-channels.js';
 import type { ExportData } from '@shared/ipc-channels.js';
 import { SyncSettings } from '@/components/Sync/SyncSettings.js';
+import { UpdateSettings } from '@/components/Settings/UpdateSettings.js';
 import { readSetting, type CanonicalSettingKey } from '@/lib/settings-keys.js';
 
 function SettingRow({
@@ -217,6 +218,15 @@ export function SettingsPage() {
         </div>
 
         <div className="grid gap-4">
+          <Card className="border-blue-200/70 dark:border-blue-900/50">
+            <CardHeader className="px-4 pt-4 pb-3">
+              <CardTitle className="text-sm font-medium">软件更新</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-0">
+              <UpdateSettings />
+            </CardContent>
+          </Card>
+
           <Card className="border-blue-200/70 dark:border-blue-900/50">
             <CardHeader className="px-4 pt-4 pb-3">
               <CardTitle className="text-sm font-medium">数据同步</CardTitle>
