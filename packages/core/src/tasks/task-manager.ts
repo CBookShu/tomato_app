@@ -1,6 +1,7 @@
 import { Task, TaskGroup, NewTask, NewTaskGroup, TaskStatus, DEFAULT_GROUP_ID } from '../types/task.js';
 import { DailyStats } from '../types/stats.js';
 import { generateId } from '../utils/id-generator.js';
+import { getToday } from '../utils/date-utils.js';
 import { addTaskAtPosition, reorderTasks, removeTaskFromOrder } from './sorting.js';
 import type { NotesStorage } from '../storage/notes-storage.js';
 
@@ -59,6 +60,7 @@ export class TaskManager {
     private groupRepo: ITaskGroupRepository,
     private statsRepo?: IStatsRepository,
     private notesStorage?: NotesStorage,
+    private todayProvider: () => string = getToday,
   ) {}
 
   async initialize(): Promise<void> {
@@ -115,7 +117,7 @@ export class TaskManager {
 
     // Update daily stats - increment completedTasks
     if (this.statsRepo) {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = this.todayProvider();
       await this.statsRepo.upsert(today, {
         completedTasks: 1,
         tasks: [id],
@@ -131,13 +133,13 @@ export class TaskManager {
 
     const updatedTask = await this.taskRepo.update(id, {
       completedPomodoros: task.completedPomodoros + 1,
-      lastPomodoroTime: dateStr ?? new Date().toISOString().slice(0, 10),
+      lastPomodoroTime: dateStr ?? this.todayProvider(),
       status: task.status === 'todo' ? 'in-progress' : task.status,
     });
 
     // Update daily stats - increment totalPomodoros
     if (this.statsRepo) {
-      const today = dateStr ?? new Date().toISOString().slice(0, 10);
+      const today = dateStr ?? this.todayProvider();
       await this.statsRepo.upsert(today, {
         totalPomodoros: 1,
         tasks: [id],

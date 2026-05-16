@@ -1,5 +1,5 @@
 import { TaskManager } from '../../src/tasks/task-manager.js';
-import { Task, TaskGroup, ITaskRepository, ITaskGroupRepository } from '../../src/tasks/task-manager.js';
+import { Task, TaskGroup, ITaskRepository, ITaskGroupRepository, IStatsRepository } from '../../src/tasks/task-manager.js';
 import { NewTask, NewTaskGroup, TaskStatus } from '../../src/types/task.js';
 import { generateId } from '../../src/utils/id-generator.js';
 
@@ -36,6 +36,20 @@ class InMemoryGroupRepo implements ITaskGroupRepository {
     return updated;
   }
   async delete(id: string): Promise<void> { this.groups.delete(id); }
+}
+
+class RecordingStatsRepo implements IStatsRepository {
+  public records: Array<{ date: string; increment: { totalPomodoros?: number; completedTasks?: number; tasks?: string[] } }> = [];
+
+  async upsert(date: string, increment: { totalPomodoros?: number; completedTasks?: number; tasks?: string[] }): Promise<any> {
+    this.records.push({ date, increment });
+    return {
+      date,
+      totalPomodoros: increment.totalPomodoros ?? 0,
+      completedTasks: increment.completedTasks ?? 0,
+      tasks: increment.tasks ?? [],
+    };
+  }
 }
 
 describe('TaskManager', () => {
@@ -105,6 +119,24 @@ describe('TaskManager', () => {
 
     expect(completed.status).toBe('completed');
     expect(completed.completedAt).toBeDefined();
+  });
+
+  test('completeTask records stats using the provided local date', async () => {
+    const statsRepo = new RecordingStatsRepo();
+    manager = new TaskManager(taskRepo, groupRepo, statsRepo, undefined, () => '2026-05-16');
+    await manager.initialize();
+
+    const task = await manager.createTask({ title: 'Finish me' });
+    await manager.completeTask(task.id);
+
+    expect(statsRepo.records).toHaveLength(1);
+    expect(statsRepo.records[0]).toEqual({
+      date: '2026-05-16',
+      increment: {
+        completedTasks: 1,
+        tasks: [task.id],
+      },
+    });
   });
 
   test('deleteTask removes from group taskOrder', async () => {

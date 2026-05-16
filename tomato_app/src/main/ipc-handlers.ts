@@ -206,7 +206,7 @@ export function registerIpcHandlers(
     ipcMain.handle(IPC.TASK_EDIT, async (_e, payload) => taskManager!.editTask(payload.id, payload.updates));
     ipcMain.handle(IPC.TASK_COMPLETE, async (_e, payload) => {
       const result = await taskManager!.completeTask(payload.id);
-      safeSend(currentWindow, IPC.TASK_COMPLETE_EVENT, payload.id);
+      safeSend(getWindow(), IPC.TASK_COMPLETE_EVENT, payload.id);
       return result;
     });
     ipcMain.handle(IPC.TASK_DELETE, async (_e, payload) =>

@@ -8,6 +8,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTaskStore } from '@/stores/task-store.js';
 import { useTimerStore } from '@/stores/timer-store.js';
 import { useTimerStart } from '@/hooks/useTimerStart.js';
+import { useStatsRefresh } from '@/hooks/useStatsRefresh.js';
 import { useIpc } from '@/hooks/useIpc.js';
 import { IPC } from '@shared/ipc-channels.js';
 
@@ -27,6 +28,7 @@ export function TaskItem({ task, isSelected }: TaskItemProps) {
   const { updateTask, removeTask, selectTask } = useTaskStore();
   const { start } = useTimerStart();
   const { invoke } = useIpc();
+  const refreshStats = useStatsRefresh();
   const currentTaskId = useTimerStore((s) => s.currentTaskId);
   const isActive = task.id === currentTaskId;
 
@@ -44,6 +46,7 @@ export function TaskItem({ task, isSelected }: TaskItemProps) {
     try {
       if (newStatus === 'completed') {
         await invoke(IPC.TASK_COMPLETE, { id: task.id });
+        await refreshStats();
       } else {
         await invoke(IPC.TASK_EDIT, {
           id: task.id,

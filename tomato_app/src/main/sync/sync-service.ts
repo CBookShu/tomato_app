@@ -1,6 +1,7 @@
 import type { FileStorage, SyncResult, SyncStatus } from '@pomodoro/core';
 import { GitClient, SyncManager } from '@pomodoro/core';
 import { getStorage } from '../database.js';
+import { getToken } from './keychain.js';
 import { createGitCredentialEnv } from './git-credentials.js';
 import { createRepositoryBinding, RepositoryBindingStore, type RepositoryBinding } from './repository-binding.js';
 
@@ -167,10 +168,11 @@ export class SyncService {
       || this.binding.remoteBranch !== activeBinding.remoteBranch;
 
     if (needsGit) {
+      const token = await getToken();
       this.git = this.gitFactory(this.dataDir, {
         remoteName: DEFAULT_REMOTE_NAME,
         remoteBranch: activeBinding.remoteBranch,
-        env: createGitCredentialEnv(),
+        env: createGitCredentialEnv(token),
       });
 
       this.syncManager = this.syncManagerFactory(this.git, this.storage, {

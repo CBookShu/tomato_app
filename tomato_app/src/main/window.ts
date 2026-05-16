@@ -7,6 +7,26 @@ const __dirname = path.dirname(__filename);
 
 const isDev = !app.isPackaged;
 const isTest = process.env.NODE_ENV === 'test';
+const TITLEBAR_HEIGHT = 40;
+
+function setupTitlebarInteractions(win: BrowserWindow): void {
+  win.webContents.on('before-mouse-event', (event, mouse) => {
+    if (mouse.type !== 'mouseDown' || mouse.button !== 'left' || mouse.clickCount !== 2) {
+      return;
+    }
+
+    if (mouse.y > TITLEBAR_HEIGHT) {
+      return;
+    }
+
+    event.preventDefault();
+    if (win.isMaximized()) {
+      win.unmaximize();
+    } else {
+      win.maximize();
+    }
+  });
+}
 
 export function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -21,6 +41,8 @@ export function createWindow(): BrowserWindow {
       nodeIntegration: false,
     },
   });
+
+  setupTitlebarInteractions(win);
 
   if (isDev && !isTest) {
     win.loadURL('http://localhost:5173').catch((err) => {

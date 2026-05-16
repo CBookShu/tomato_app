@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { useTimerStore } from '@/stores/timer-store.js';
 import { useTaskStore } from '@/stores/task-store.js';
-import { useStatsStore } from '@/stores/stats-store.js';
 import { useIpc } from './useIpc.js';
+import { useStatsRefresh } from './useStatsRefresh.js';
 import { IPC } from '@shared/ipc-channels.js';
 import type { TimerState } from '@pomodoro/core';
 
@@ -14,7 +14,7 @@ export function useTimerEvents() {
   const { invoke, listen } = useIpc();
   const timerStore = useTimerStore();
   const taskStore = useTaskStore();
-  const statsStore = useStatsStore();
+  const refreshStats = useStatsRefresh();
 
   useEffect(() => {
     // 监听 tick 事件
@@ -46,10 +46,7 @@ export function useTimerEvents() {
             if (updatedTask) {
               taskStore.updateTask(currentTaskId, updatedTask);
             }
-            // 刷新统计
-            const { getToday } = await import('@pomodoro/core/dist/utils/date-utils.js');
-            const today = await invoke(IPC.STATS_GET_DAILY, { date: getToday() });
-            statsStore.setToday(today);
+            await refreshStats();
           } catch (error) {
             console.error('Failed to increment pomodoro:', error);
           }
@@ -58,10 +55,19 @@ export function useTimerEvents() {
       }
     });
 
+    const unsubTaskComplete = listen(IPC.TASK_COMPLETE_EVENT, async () => {
+      try {
+        await refreshStats();
+      } catch (error) {
+        console.error('Failed to refresh stats after task completion:', error);
+      }
+    });
+
     return () => {
       unsubTick();
       unsubStatus();
       unsubComplete();
+      unsubTaskComplete();
     };
   }, []);
 }

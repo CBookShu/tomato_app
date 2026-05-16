@@ -9,6 +9,7 @@ import MDEditor from '@uiw/react-md-editor';
 import { useDebounce } from '@/hooks/useDebounce.js';
 import { useTimerStore } from '@/stores/timer-store.js';
 import { normalizeTaskNotes, shouldAutoSaveNotes } from '@/lib/task-notes.js';
+import { useStatsRefresh } from '@/hooks/useStatsRefresh.js';
 
 const AUTO_SAVE_DELAY_MS = 500;
 
@@ -19,6 +20,7 @@ export function TaskDetail() {
   const { start } = useTimerStart();
   const status = useTimerStore((s) => s.status);
   const { invoke } = useIpc();
+  const refreshStats = useStatsRefresh();
 
   // Use useMemo to find the selected task
   const task = useMemo(
@@ -159,6 +161,7 @@ export function TaskDetail() {
     try {
       if (newStatus === 'completed') {
         await invoke(IPC.TASK_COMPLETE, { id: task.id });
+        await refreshStats();
       } else {
         await invoke(IPC.TASK_EDIT, {
           id: task.id,
