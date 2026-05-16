@@ -47,9 +47,11 @@ npm run dist             # Build distributable (DMG/zip for macOS)
 
 - Run E2E from `tomato_app/`.
 - The suite uses Playwright against a real Electron app.
+- Any feature work that affects UI, visible flows, or user-facing behavior must add or update Playwright E2E coverage.
 - Test durations in the test environment are short: pomodoro 5s, short break 3s, long break 5s.
 - The main process is launched from compiled output at `tomato_app/dist/main/main/index.js`, so rebuild `src/main/**` changes with `npm run build:main` or `npm run build` before running E2E.
 - E2E fixtures isolate each worker with its own `userData` directory; keep that pattern when adding new specs.
+- When Codex runs Playwright E2E in this environment, temporary sandbox elevation may be required for Electron to launch. If E2E fails with `Process failed to launch!` or `SIGABRT`, rerun the test with temporary escalated permissions before concluding the app code is broken.
 
 Current E2E files:
 - `tests/e2e/fixtures.ts`
@@ -114,4 +116,4 @@ IPC channels are defined in `src/shared/ipc-channels.ts`.
 - Database/data root is `app.getPath('userData')/tomato-data`
 - Default task group has special ID (`DEFAULT_GROUP_ID`) and cannot be deleted
 - If you change `src/main/**`, rebuild the main process before E2E
-
+- UI-affecting changes should not be considered complete until the relevant Playwright E2E coverage is added or updated and run successfully.
