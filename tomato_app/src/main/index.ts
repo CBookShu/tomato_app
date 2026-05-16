@@ -7,8 +7,11 @@ import { notifyPomodoroComplete, notifyBreakComplete, setNotificationWindow } fr
 import { registerShortcuts, unregisterShortcuts } from './shortcuts.js';
 import { safeSend } from './safe-send.js';
 import { IPC } from '../shared/ipc-channels.js';
+import { UpdateService } from './update/update-service.js';
+import { registerUpdateIpcHandlers } from './update/update-ipc.js';
 
 let mainWindow: BrowserWindow | null = null;
+let updateService: UpdateService | null = null;
 
 const testUserDataDir = process.env.NODE_ENV === 'test' ? process.env.TEST_E2E_USER_DATA_DIR : undefined;
 if (testUserDataDir) {
@@ -34,6 +37,7 @@ app.whenReady().then(async () => {
   setupNotificationPermissions();
   const { taskManager, statsRepo, configRepo } = await initStorage();
   await taskManager.initialize();
+  updateService = new UpdateService();
 
   mainWindow = createWindow();
   setNotificationWindow(mainWindow);
@@ -41,6 +45,7 @@ app.whenReady().then(async () => {
     onPomodoroComplete: notifyPomodoroComplete,
     onBreakComplete: notifyBreakComplete,
   });
+  registerUpdateIpcHandlers(updateService);
 
   createTray(() => mainWindow);
 
@@ -54,6 +59,10 @@ app.whenReady().then(async () => {
     onNewTask: () => safeSend(mainWindow, 'focus:newTask'),
   });
 
+  void updateService.checkForUpdates().catch((error) => {
+    console.warn('Update check failed:', error);
+  });
+
   // 测试环境专用 IPC
   if (process.env.NODE_ENV === 'test') {
     const { clearDatabase } = await import('./database.js');
@@ -61,6 +70,7 @@ app.whenReady().then(async () => {
     ipcMain.handle('test:clear-database', async () => {
       await clearDatabase();
       await taskManager.initialize();
+      await updateService?.resetForTests();
       return { success: true };
     });
 

@@ -1,5 +1,6 @@
 import type { Task, TaskGroup, NewTask, NewTaskGroup, TaskStatus, SyncResult, SyncStatus } from '@pomodoro/core';
 import type { DailyStats, MonthlyStats, TimerState } from '@pomodoro/core';
+import type { UpdateCheckOptions, UpdateSeed, UpdateSnapshot } from './app-update.js';
 
 // Data export/import types
 export interface ExportData {
@@ -82,6 +83,13 @@ export const IPC = {
   SYNC_ROLLBACK: 'sync:rollback',
   SYNC_GET_DATA_DIR: 'sync:get-data-dir',
   TEST_SYNC_SEED: 'test:seed-sync',
+
+  // Update
+  UPDATE_GET_STATUS: 'update:get-status',
+  UPDATE_CHECK_FOR_UPDATES: 'update:check-for-updates',
+  UPDATE_OPEN_RELEASE: 'update:open-release',
+  TEST_UPDATE_SEED: 'test:update-seed',
+  TEST_UPDATE_RESET: 'test:update-reset',
 } as const;
 
 // Request/Response type pairs for each channel
@@ -184,6 +192,12 @@ export interface IpcChannelMap {
     };
     response: { success: true };
   };
+
+  [IPC.UPDATE_GET_STATUS]: { request: void; response: UpdateSnapshot };
+  [IPC.UPDATE_CHECK_FOR_UPDATES]: { request: UpdateCheckOptions; response: UpdateSnapshot };
+  [IPC.UPDATE_OPEN_RELEASE]: { request: void; response: void };
+  [IPC.TEST_UPDATE_SEED]: { request: UpdateSeed; response: { success: true } };
+  [IPC.TEST_UPDATE_RESET]: { request: void; response: { success: true } };
 }
 
 export type IpcEventChannel =
@@ -222,7 +236,12 @@ declare global {
         sync: () => Promise<SyncResult>;
         resolveConflict: () => Promise<SyncResult>;
         rollback: () => Promise<void>;
-        getDataDir: () => Promise<string>;
+      getDataDir: () => Promise<string>;
+    };
+      update: {
+        getStatus: () => Promise<UpdateSnapshot>;
+        checkForUpdates: (options?: UpdateCheckOptions) => Promise<UpdateSnapshot>;
+        openRelease: () => Promise<void>;
       };
     };
   }
