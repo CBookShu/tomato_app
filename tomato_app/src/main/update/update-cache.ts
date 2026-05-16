@@ -3,12 +3,12 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { UpdateSnapshot } from '../../shared/app-update.js';
 
-export function getUpdateCachePath(baseDir: string = path.join(app.getPath('userData'), 'tomato-data')): string {
+export function getUpdateCachePath(baseDir: string = app.getPath('userData')): string {
   return path.join(baseDir, 'update-cache.json');
 }
 
 export class UpdateCache {
-  constructor(private readonly baseDir: string = path.join(app.getPath('userData'), 'tomato-data')) {}
+  constructor(private readonly baseDir: string = app.getPath('userData')) {}
 
   async load(): Promise<UpdateSnapshot | null> {
     try {

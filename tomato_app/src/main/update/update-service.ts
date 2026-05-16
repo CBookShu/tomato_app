@@ -13,6 +13,7 @@ import { compareSemver } from '../../shared/release-version.js';
 import { createGithubReleaseClient, type GithubReleaseClient } from './github-release-client.js';
 
 export interface UpdateServiceDeps {
+  cacheDir?: string;
   cache?: UpdateCache;
   client?: GithubReleaseClient;
   fetcher?: typeof fetch;
@@ -86,7 +87,7 @@ export class UpdateService {
   constructor(private readonly deps: UpdateServiceDeps = {}) {}
 
   private get cache(): UpdateCache {
-    return this.deps.cache ?? new UpdateCache();
+    return this.deps.cache ?? new UpdateCache(this.deps.cacheDir);
   }
 
   private get client(): GithubReleaseClient {
