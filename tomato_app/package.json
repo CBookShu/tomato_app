@@ -17,6 +17,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "lint": "tsc --noEmit",
+    "release:verify": "node scripts/verify-release-tag.mjs",
     "pack": "electron-builder --dir",
     "dist": "electron-builder"
   },
