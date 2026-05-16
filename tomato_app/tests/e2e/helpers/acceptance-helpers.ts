@@ -43,6 +43,8 @@ export async function clearDataAndReload(page: Page, electronApp: ElectronApplic
   if (!resetResult?.success) {
     throw new Error('test:seed-sync did not return success');
   }
+
+  await resetUpdateState(page);
 }
 
 export async function seedSyncBinding(
@@ -70,6 +72,48 @@ export async function seedSyncBinding(
 
   if (!result?.success) {
     throw new Error('test:seed-sync did not return success');
+  }
+}
+
+export async function seedUpdateRelease(
+  page: Page,
+  state: {
+    status?: 'idle' | 'available' | 'up-to-date' | 'error';
+    latestVersion?: string | null;
+    releaseTag?: string | null;
+    releaseName?: string | null;
+    releaseUrl?: string | null;
+    releaseNotes?: string | null;
+    lastCheckedAt?: string | null;
+    error?: string | null;
+  },
+): Promise<void> {
+  const result = await page.evaluate(async ({ channel, payload }) => {
+    try {
+      return await window.electronAPI.invoke(channel as never, payload as never);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`test:update-seed handler is unavailable: ${message}`);
+    }
+  }, { channel: IPC.TEST_UPDATE_SEED, payload: state });
+
+  if (!result?.success) {
+    throw new Error('test:update-seed did not return success');
+  }
+}
+
+export async function resetUpdateState(page: Page): Promise<void> {
+  const result = await page.evaluate(async ({ channel }) => {
+    try {
+      return await window.electronAPI.invoke(channel as never);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`test:update-reset handler is unavailable: ${message}`);
+    }
+  }, { channel: IPC.TEST_UPDATE_RESET });
+
+  if (!result?.success) {
+    throw new Error('test:update-reset did not return success');
   }
 }
 

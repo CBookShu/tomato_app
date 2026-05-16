@@ -1,5 +1,4 @@
 import { app, shell } from 'electron';
-import type { UpdateCache } from './update-cache.js';
 import { UpdateCache } from './update-cache.js';
 import {
   UPDATE_CACHE_TTL_MS,

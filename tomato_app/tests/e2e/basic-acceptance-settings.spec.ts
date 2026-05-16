@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { clearDataAndReload } from './helpers/acceptance-helpers';
+import { clearDataAndReload, seedUpdateRelease } from './helpers/acceptance-helpers';
 import { IPC } from '../../src/shared/ipc-channels.js';
 import type { Page } from '@playwright/test';
 
@@ -79,5 +79,25 @@ test.describe('基础验收：设置持久化', () => {
     const persistedSettings = await readSettings(page);
     expect(persistedSettings.pomodoroDuration).toBe('32');
     expect(persistedSettings.pomodoro_duration).toBe('31');
+  });
+
+  test('设置页显示软件更新区块，种子化发布会显示为可用更新', async ({ page }) => {
+    await seedUpdateRelease(page, {
+      latestVersion: '0.2.0',
+      releaseTag: 'v0.2.0',
+      releaseName: 'Tomato 0.2.0',
+      releaseUrl: 'https://github.com/CBookShu/tomato_app/releases/tag/v0.2.0',
+      releaseNotes: '## Highlights',
+      lastCheckedAt: '2026-05-16T08:10:00.000Z',
+    });
+
+    await page.getByRole('tab', { name: '设置' }).click();
+
+    await expect(page.getByText('软件更新')).toBeVisible();
+    await expect(page.getByText('发现新版本')).toBeVisible();
+    await expect(page.getByText('0.2.0 (v0.2.0)', { exact: true })).toBeVisible();
+    await expect(page.getByText('v0.2.0', { exact: true })).toBeVisible();
+    await expect(page.getByText('Tomato 0.2.0')).toBeVisible();
+    await expect(page.getByRole('button', { name: '打开发布页' })).toBeVisible();
   });
 });
