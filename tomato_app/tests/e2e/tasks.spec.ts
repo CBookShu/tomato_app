@@ -65,17 +65,19 @@ test.describe('Tasks', () => {
     let currentApp = electronApp;
     let currentPage = page;
 
-    await createGroup(currentPage, '工作');
-    ({ app: currentApp, page: currentPage } = await relaunchApp(currentApp, userDataDir));
-    await openTasksTab(currentPage);
-    await expect(currentPage.getByText('工作')).toBeVisible();
+    try {
+      await createGroup(currentPage, '工作');
+      ({ app: currentApp, page: currentPage } = await relaunchApp(currentApp, userDataDir));
+      await openTasksTab(currentPage);
+      await expect(currentPage.getByText('工作')).toBeVisible();
 
-    await renameGroup(currentPage, '工作', '项目');
-    ({ app: currentApp, page: currentPage } = await relaunchApp(currentApp, userDataDir));
-    await openTasksTab(currentPage);
-    await expect(currentPage.getByText('项目')).toBeVisible();
-
-    await currentApp.close();
+      await renameGroup(currentPage, '工作', '项目');
+      ({ app: currentApp, page: currentPage } = await relaunchApp(currentApp, userDataDir));
+      await openTasksTab(currentPage);
+      await expect(currentPage.getByText('项目')).toBeVisible();
+    } finally {
+      await currentApp.close().catch(() => {});
+    }
   });
 
   test('deletes a normal group, migrates its tasks to 未分组, and keeps task order after relaunch', async ({
@@ -86,28 +88,30 @@ test.describe('Tasks', () => {
     let currentApp = electronApp;
     let currentPage = page;
 
-    await createGroup(currentPage, '工作');
-    await createTaskInGroup(currentPage, '工作', 'Alpha');
-    await createTaskInGroup(currentPage, '工作', 'Beta');
+    try {
+      await createGroup(currentPage, '工作');
+      await createTaskInGroup(currentPage, '工作', 'Alpha');
+      await createTaskInGroup(currentPage, '工作', 'Beta');
 
-    const workRow = groupRow(currentPage, '工作');
-    await workRow.getByRole('button', { name: '分组操作' }).click();
-    await currentPage.getByRole('button', { name: '删除' }).click();
-    await currentPage.getByRole('button', { name: '删除' }).click();
+      const workRow = groupRow(currentPage, '工作');
+      await workRow.getByRole('button', { name: '分组操作' }).click();
+      await currentPage.getByRole('button', { name: '删除' }).click();
+      await currentPage.getByRole('button', { name: '删除' }).click();
 
-    await expect(currentPage.getByText('工作')).toHaveCount(0);
-    await expect(currentPage.getByText('未分组')).toBeVisible();
+      await expect(currentPage.getByText('工作')).toHaveCount(0);
+      await expect(currentPage.getByText('未分组')).toBeVisible();
 
-    const taskTitles = await currentPage.getByTestId('task-item').locator('span.flex-1').allTextContents();
-    expect(taskTitles).toEqual(['Alpha', 'Beta']);
+      const taskTitles = await currentPage.getByTestId('task-item').locator('span.flex-1').allTextContents();
+      expect(taskTitles).toEqual(['Alpha', 'Beta']);
 
-    ({ app: currentApp, page: currentPage } = await relaunchApp(currentApp, userDataDir));
-    await openTasksTab(currentPage);
-    await expect(currentPage.getByText('工作')).toHaveCount(0);
-    await expect(currentPage.getByTestId('task-item').filter({ hasText: 'Alpha' })).toBeVisible();
-    await expect(currentPage.getByTestId('task-item').filter({ hasText: 'Beta' })).toBeVisible();
-
-    await currentApp.close();
+      ({ app: currentApp, page: currentPage } = await relaunchApp(currentApp, userDataDir));
+      await openTasksTab(currentPage);
+      await expect(currentPage.getByText('工作')).toHaveCount(0);
+      await expect(currentPage.getByTestId('task-item').filter({ hasText: 'Alpha' })).toBeVisible();
+      await expect(currentPage.getByTestId('task-item').filter({ hasText: 'Beta' })).toBeVisible();
+    } finally {
+      await currentApp.close().catch(() => {});
+    }
   });
 
   test('does not show delete controls for the default group', async ({ page }) => {
