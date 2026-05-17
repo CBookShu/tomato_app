@@ -145,7 +145,7 @@ export async function createDefaultTask(page: Page, title = '新任务'): Promis
   await page.getByRole('tab', { name: '任务' }).click();
   await expect(page.getByText('未分组')).toBeVisible();
 
-  await page.getByTitle('新建任务').click();
+  await page.getByRole('button', { name: '新建任务' }).click();
   const newTaskItem = page.getByTestId('task-item').filter({ hasText: '新任务' }).first();
   await expect(newTaskItem).toBeVisible();
 
