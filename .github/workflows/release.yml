@@ -31,13 +31,13 @@ jobs:
           GITHUB_REF_NAME: ${{ github.ref_name }}
 
       - name: Run release version tests
-        run: npm test -- --run tests/lib/release-version.test.ts
+        run: npm --workspace tomato-app run test -- --run tests/lib/release-version.test.ts
 
       - name: Run update service tests
-        run: npm test -- --run tests/main/update/update-service.test.ts
+        run: npm --workspace tomato-app run test -- --run tests/main/update/update-service.test.ts
 
       - name: Run renderer update tests
-        run: npm test -- --run tests/stores/update-store.test.ts tests/components/update-settings.test.tsx
+        run: npm --workspace tomato-app run test -- --run tests/stores/update-store.test.ts tests/components/update-settings.test.tsx
 
       - name: Build workspace
         run: npm run build
