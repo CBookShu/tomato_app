@@ -217,10 +217,23 @@ export class TaskManager {
     if (id === DEFAULT_GROUP_ID) {
       throw new Error('Cannot delete the default group');
     }
-    const tasks = await this.taskRepo.findByGroup(id);
-    for (const task of tasks) {
-      await this.deleteTask(task.id);
+    const group = await this.groupRepo.findById(id);
+    if (!group) {
+      return;
     }
+
+    const tasks = await this.taskRepo.findByGroup(id);
+    const taskIdsByOrder = [
+      ...group.taskOrder,
+      ...tasks
+        .map((task) => task.id)
+        .filter((taskId) => !group.taskOrder.includes(taskId)),
+    ];
+
+    for (const taskId of taskIdsByOrder) {
+      await this.moveTaskToGroup(taskId, DEFAULT_GROUP_ID);
+    }
+
     await this.groupRepo.delete(id);
   }
 }

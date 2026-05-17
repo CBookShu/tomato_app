@@ -6,34 +6,68 @@ import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog.js';
 import { Input } from '@/components/ui/input.js';
+import { useIpc } from '@/hooks/useIpc.js';
+import {
+  createGroupAndRehydrate,
+  deleteGroupAndRehydrate,
+  renameGroupAndRehydrate,
+} from '@/lib/task-group-actions.js';
 
 export function TaskTree() {
   const groups = useTaskStore((s) => s.groups);
   const getTasksByGroup = useTaskStore((s) => s.getTasksByGroup);
-  const addGroup = useTaskStore((s) => s.addGroup);
+  const setTasks = useTaskStore((s) => s.setTasks);
+  const setGroups = useTaskStore((s) => s.setGroups);
+  const { invoke } = useIpc();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  const [deleteGroupId, setDeleteGroupId] = useState<string | null>(null);
 
-  const handleCreateGroup = () => {
+  const handleCreateGroup = async () => {
     const name = newGroupName.trim();
     if (name) {
-      addGroup({
-        id: crypto.randomUUID(),
-        name,
-        taskOrder: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+      await createGroupAndRehydrate({
+        invoke,
+        setTasks,
+        setGroups,
+        input: { name },
       });
       setNewGroupName('');
       setDialogOpen(false);
     }
   };
+
+  const handleRenameGroup = async (id: string, name: string) => {
+    await renameGroupAndRehydrate({
+      invoke,
+      setTasks,
+      setGroups,
+      id,
+      name,
+    });
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!deleteGroupId) return;
+
+    await deleteGroupAndRehydrate({
+      invoke,
+      setTasks,
+      setGroups,
+      id: deleteGroupId,
+    });
+    setDeleteGroupId(null);
+  };
+
+  const deleteGroupName = deleteGroupId ? groups.find((group) => group.id === deleteGroupId)?.name ?? '' : '';
+  const deleteTaskCount = deleteGroupId ? getTasksByGroup(deleteGroupId).length : 0;
 
   return (
     <div className="h-full bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col">
@@ -47,6 +81,8 @@ export function TaskTree() {
             key={group.id}
             group={group}
             tasks={getTasksByGroup(group.id)}
+            onRename={(name) => handleRenameGroup(group.id, name)}
+            onDelete={() => setDeleteGroupId(group.id)}
           />
         ))}
       </div>
@@ -73,7 +109,11 @@ export function TaskTree() {
               placeholder="输入分组名称"
               value={newGroupName}
               onChange={(e) => setNewGroupName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleCreateGroup()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  void handleCreateGroup();
+                }
+              }}
               autoFocus
             />
           </div>
@@ -82,6 +122,26 @@ export function TaskTree() {
               取消
             </Button>
             <Button onClick={handleCreateGroup}>创建</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteGroupId} onOpenChange={(open) => !open && setDeleteGroupId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>删除任务组</DialogTitle>
+          </DialogHeader>
+          <DialogDescription>
+            确定要删除「{deleteGroupName}」及其包含的 {deleteTaskCount} 个任务吗？
+          </DialogDescription>
+          <p className="text-sm text-muted-foreground">组内任务会迁移到「未分组」。</p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteGroupId(null)}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={() => void handleDeleteGroup()}>
+              删除
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

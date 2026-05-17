@@ -30,11 +30,18 @@ import { Input } from '@/components/ui/input.js';
 import { Plus } from 'lucide-react';
 import { IPC } from '../../../shared/ipc-channels.js';
 import { DEFAULT_GROUP_ID } from '@pomodoro/core';
+import { useIpc } from '@/hooks/useIpc.js';
+import {
+  createGroupAndRehydrate,
+  deleteGroupAndRehydrate,
+  renameGroupAndRehydrate,
+} from '@/lib/task-group-actions.js';
 
 export function TaskGroupList() {
   const groups = useTaskStore((s) => s.groups);
-  const { getTasksByGroup, addTask, addGroup, removeGroup, updateGroup, reorderTaskInGroup } =
+  const { getTasksByGroup, addTask, reorderTaskInGroup, setTasks, setGroups } =
     useTaskStore();
+  const { invoke } = useIpc();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -61,15 +68,14 @@ export function TaskGroupList() {
       return next;
     });
 
-  const handleCreateGroup = () => {
+  const handleCreateGroup = async () => {
     const name = newGroupName.trim();
     if (name) {
-      addGroup({
-        id: crypto.randomUUID(),
-        name,
-        taskOrder: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+      await createGroupAndRehydrate({
+        invoke,
+        setTasks,
+        setGroups,
+        input: { name },
       });
       setNewGroupName('');
       setDialogOpen(false);
@@ -86,8 +92,12 @@ export function TaskGroupList() {
     }
 
     try {
-      await window.electronAPI.invoke(IPC.GROUP_DELETE, { id: deleteGroupId });
-      removeGroup(deleteGroupId);
+      await deleteGroupAndRehydrate({
+        invoke,
+        setTasks,
+        setGroups,
+        id: deleteGroupId,
+      });
       setDeleteGroupId(null);
       setDeleteError(null);
     } catch (error) {
@@ -157,7 +167,15 @@ export function TaskGroupList() {
             collapsed={collapsed.has(group.id)}
             onToggle={() => toggle(group.id)}
             onAddTask={() => setAddingTo(group.id)}
-            onRename={(name) => updateGroup(group.id, { name })}
+            onRename={(name) =>
+              renameGroupAndRehydrate({
+                invoke,
+                setTasks,
+                setGroups,
+                id: group.id,
+                name,
+              })
+            }
             onDelete={() => handleDeleteRequest(group.id)}
           />
           {!collapsed.has(group.id) && (
@@ -217,7 +235,11 @@ export function TaskGroupList() {
               placeholder="输入分组名称"
               value={newGroupName}
               onChange={(e) => setNewGroupName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleCreateGroup()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  void handleCreateGroup();
+                }
+              }}
               autoFocus
             />
           </div>
@@ -225,7 +247,7 @@ export function TaskGroupList() {
             <Button variant="ghost" onClick={() => setDialogOpen(false)}>
               取消
             </Button>
-            <Button onClick={handleCreateGroup}>创建</Button>
+            <Button onClick={() => void handleCreateGroup()}>创建</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -255,7 +277,7 @@ export function TaskGroupList() {
               {deleteError ? '关闭' : '取消'}
             </Button>
             {!deleteError && (
-              <Button variant="destructive" onClick={handleDeleteGroup}>
+              <Button variant="destructive" onClick={() => void handleDeleteGroup()}>
                 删除
               </Button>
             )}

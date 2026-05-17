@@ -1,5 +1,5 @@
 import type { TaskGroup, Task } from '@pomodoro/core';
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { TaskGroupHeader } from './TaskGroupHeader.js';
 import { TaskItem } from './TaskItem.js';
 import { useTaskStore } from '@/stores/task-store.js';
 import { useTimerStore } from '@/stores/timer-store.js';
@@ -9,9 +9,11 @@ import { IPC } from '@shared/ipc-channels.js';
 interface TaskGroupItemProps {
   group: TaskGroup;
   tasks: Task[];
+  onRename: (name: string) => Promise<void> | void;
+  onDelete: () => void;
 }
 
-export function TaskGroupItem({ group, tasks }: TaskGroupItemProps) {
+export function TaskGroupItem({ group, tasks, onRename, onDelete }: TaskGroupItemProps) {
   const collapsedGroups = useTaskStore((s) => s.collapsedGroups);
   const toggleGroupCollapse = useTaskStore((s) => s.toggleGroupCollapse);
   const selectedTaskId = useTaskStore((s) => s.selectedTaskId);
@@ -22,18 +24,8 @@ export function TaskGroupItem({ group, tasks }: TaskGroupItemProps) {
   const { invoke } = useIpc();
 
   const isCollapsed = collapsedGroups.has(group.id);
-  const completedCount = tasks.filter((t) => t.status === 'completed').length;
-
-  // Find if any task in this group is active
   const activeTask = tasks.find((t) => t.id === currentTaskId);
   const showTimer = activeTask && timerStatus === 'working';
-
-  // Format remaining time
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
 
   const handleAddTask = async () => {
     const title = '新任务';
@@ -52,47 +44,25 @@ export function TaskGroupItem({ group, tasks }: TaskGroupItemProps) {
   };
 
   return (
-    <div className="mb-1">
-      <div className="w-full flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-        <button
-          onClick={() => toggleGroupCollapse(group.id)}
-          aria-expanded={!isCollapsed}
-          aria-controls={`group-${group.id}`}
-          className="flex items-center gap-1 flex-1"
-        >
-          {isCollapsed ? (
-            <ChevronRight className="h-4 w-4 text-gray-400" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-gray-400" />
-          )}
-          {group.color && (
-            <div
-              className="w-3 h-3 rounded-full shrink-0"
-              style={{ backgroundColor: group.color }}
-            />
-          )}
-          <span className="flex-1 text-sm font-medium text-left truncate">
-            {group.name}
+    <div className="mb-1" data-testid="task-group">
+      <TaskGroupHeader
+        group={group}
+        tasks={tasks}
+        collapsed={isCollapsed}
+        onToggle={() => toggleGroupCollapse(group.id)}
+        onAddTask={handleAddTask}
+        onRename={onRename}
+        onDelete={onDelete}
+      />
+      {showTimer && (
+        <div className="ml-9 mb-1 flex items-center gap-1 text-xs text-tomato animate-pulse">
+          <span>🍅</span>
+          <span className="font-mono">
+            {Math.floor(remainingTime / 60).toString().padStart(2, '0')}:
+            {(remainingTime % 60).toString().padStart(2, '0')}
           </span>
-          <span className="text-xs text-gray-400">
-            {completedCount}/{tasks.length}
-          </span>
-          {showTimer && (
-            <span className="flex items-center gap-1 text-xs text-tomato animate-pulse ml-2">
-              <span>🍅</span>
-              <span className="font-mono">{formatTime(remainingTime)}</span>
-            </span>
-          )}
-        </button>
-
-        <button
-          onClick={handleAddTask}
-          className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-          title="新建任务"
-        >
-          <Plus className="h-3.5 w-3.5 text-gray-400" />
-        </button>
-      </div>
+        </div>
+      )}
 
       {!isCollapsed && (
         <div id={`group-${group.id}`} className="ml-4 mt-0.5">

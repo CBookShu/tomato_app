@@ -178,16 +178,23 @@ describe('TaskManager', () => {
     expect(updated!.taskOrder).toEqual([t3.id, t1.id, t2.id]);
   });
 
-  test('deleteGroup removes group and all its tasks', async () => {
+  test('deleteGroup migrates group tasks to the default group and preserves order', async () => {
+    const defaultTask = await manager.createTask({ title: 'Existing default task' });
     const group = await manager.createGroup({ name: 'Temp' });
-    await manager.createTask({ title: 'T1', groupId: group.id });
-    await manager.createTask({ title: 'T2', groupId: group.id });
+    const movedTask1 = await manager.createTask({ title: 'T1', groupId: group.id });
+    const movedTask2 = await manager.createTask({ title: 'T2', groupId: group.id });
 
     await manager.deleteGroup(group.id);
 
     expect(await manager.getGroup(group.id)).toBeNull();
+
     const allTasks = await manager.getAllTasks();
-    expect(allTasks.filter((t) => t.groupId === group.id)).toHaveLength(0);
+    expect(allTasks).toHaveLength(3);
+    expect(allTasks.find((task) => task.id === movedTask1.id)?.groupId).toBe('default');
+    expect(allTasks.find((task) => task.id === movedTask2.id)?.groupId).toBe('default');
+
+    const defaultGroup = await manager.getGroup('default');
+    expect(defaultGroup?.taskOrder).toEqual([defaultTask.id, movedTask1.id, movedTask2.id]);
   });
 
   test('deleteGroup throws when trying to delete default group', async () => {

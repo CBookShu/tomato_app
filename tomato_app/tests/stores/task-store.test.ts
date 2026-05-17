@@ -56,6 +56,21 @@ describe('taskStore', () => {
     expect(inG1[0].id).toBe('t1');
   });
 
+  test('getTasksByGroup respects the group taskOrder when present', () => {
+    useTaskStore.getState().setGroups([
+      {
+        ...mockGroup('g1', 'Work'),
+        taskOrder: ['t2', 't1'],
+      },
+    ]);
+    useTaskStore.getState().addTask(mockTask('t1', 'g1'));
+    useTaskStore.getState().addTask(mockTask('t2', 'g1'));
+
+    const inG1 = useTaskStore.getState().getTasksByGroup('g1');
+
+    expect(inG1.map((task) => task.id)).toEqual(['t2', 't1']);
+  });
+
   test('addGroup and getGroups', () => {
     useTaskStore.getState().addGroup(mockGroup('g1', 'Work'));
     expect(useTaskStore.getState().groups).toHaveLength(1);

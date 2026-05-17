@@ -1,6 +1,20 @@
 import { create } from 'zustand';
 import type { Task, TaskGroup, TaskStatus } from '@pomodoro/core';
 
+function sortTasksForGroup(tasks: Task[], group?: TaskGroup): Task[] {
+  if (!group) {
+    return tasks;
+  }
+
+  const tasksById = new Map(tasks.map((task) => [task.id, task]));
+  const orderedTasks = group.taskOrder
+    .map((taskId) => tasksById.get(taskId))
+    .filter((task): task is Task => Boolean(task));
+  const unorderedTasks = tasks.filter((task) => !group.taskOrder.includes(task.id));
+
+  return [...orderedTasks, ...unorderedTasks];
+}
+
 interface TaskStoreState {
   tasks: Task[];
   groups: TaskGroup[];
@@ -43,18 +57,25 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
   removeTask: (id) => set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) })),
   reorderTaskInGroup: (groupId, oldIndex, newIndex) =>
     set((s) => {
-      const groupTasks = s.tasks.filter((t) => t.groupId === groupId);
-      const otherTasks = s.tasks.filter((t) => t.groupId !== groupId);
+      const group = s.groups.find((item) => item.id === groupId);
+      const groupTasks = sortTasksForGroup(
+        s.tasks.filter((task) => task.groupId === groupId),
+        group,
+      );
 
       if (oldIndex < 0 || oldIndex >= groupTasks.length || newIndex < 0 || newIndex >= groupTasks.length) {
         return s;
       }
 
-      // Reorder the group tasks array
       const [movedTask] = groupTasks.splice(oldIndex, 1);
       groupTasks.splice(newIndex, 0, movedTask);
+      const nextTaskOrder = groupTasks.map((task) => task.id);
 
-      return { tasks: [...otherTasks, ...groupTasks] };
+      return {
+        groups: s.groups.map((item) =>
+          item.id === groupId ? { ...item, taskOrder: nextTaskOrder } : item,
+        ),
+      };
     }),
 
   addGroup: (group) => set((s) => ({ groups: [...s.groups, group] })),
@@ -64,7 +85,12 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     })),
   removeGroup: (id) => set((s) => ({ groups: s.groups.filter((g) => g.id !== id) })),
 
-  getTasksByGroup: (groupId) => get().tasks.filter((t) => t.groupId === groupId),
+  getTasksByGroup: (groupId) => {
+    const { tasks, groups } = get();
+    const groupTasks = tasks.filter((task) => task.groupId === groupId);
+    const group = groups.find((item) => item.id === groupId);
+    return sortTasksForGroup(groupTasks, group);
+  },
   getTasksByStatus: (status) => get().tasks.filter((t) => t.status === status),
 
   setLoading: (loading) => set({ loading }),

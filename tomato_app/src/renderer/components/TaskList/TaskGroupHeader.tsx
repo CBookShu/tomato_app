@@ -9,7 +9,7 @@ interface TaskGroupHeaderProps {
   collapsed: boolean;
   onToggle: () => void;
   onAddTask: () => void;
-  onRename: (name: string) => void;
+  onRename: (name: string) => Promise<void> | void;
   onDelete: () => void;
 }
 
@@ -30,6 +30,10 @@ export function TaskGroupHeader({
   const completed = tasks.filter((t) => t.status === 'completed').length;
 
   useEffect(() => {
+    setName(group.name);
+  }, [group.name]);
+
+  useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
@@ -39,11 +43,16 @@ export function TaskGroupHeader({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSave = () => {
-    if (name.trim()) {
-      onRename(name.trim());
+  const handleSave = async () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setName(group.name);
       setEditing(false);
+      return;
     }
+
+    await onRename(trimmedName);
+    setEditing(false);
   };
 
   return (
@@ -78,11 +87,18 @@ export function TaskGroupHeader({
         {completed}/{tasks.length}
       </span>
       <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onAddTask}>
+        <span className="sr-only">新建任务</span>
         <Plus className="h-3.5 w-3.5" />
       </Button>
       {!isDefault && (
         <div className="relative" ref={menuRef}>
-          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setMenuOpen(!menuOpen)}>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-6 w-6"
+            aria-label="分组操作"
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
             <MoreHorizontal className="h-3.5 w-3.5" />
           </Button>
           {menuOpen && (
