@@ -12,6 +12,81 @@ import { SyncSettings } from '@/components/Sync/SyncSettings.js';
 import { UpdateSettings } from '@/components/Settings/UpdateSettings.js';
 import { readSetting, type CanonicalSettingKey } from '@/lib/settings-keys.js';
 
+type NumericSettingKey =
+  | 'pomodoroDuration'
+  | 'shortBreakDuration'
+  | 'longBreakDuration'
+  | 'longBreakInterval';
+
+function NumericSettingRow({
+  label,
+  value,
+  min,
+  max,
+  onCommit,
+}: {
+  label: string;
+  value: string;
+  min: number;
+  max: number;
+  onCommit: (value: string) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState(value);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  const commitDraft = async () => {
+    const trimmed = draft.trim();
+    const parsed = Number(trimmed);
+    const isValid =
+      trimmed !== '' &&
+      Number.isInteger(parsed) &&
+      parsed >= min &&
+      parsed <= max;
+
+    if (!isValid) {
+      setDraft(value);
+      return;
+    }
+
+    const nextValue = String(parsed);
+    if (nextValue === value) {
+      setDraft(nextValue);
+      return;
+    }
+
+    await onCommit(nextValue);
+  };
+
+  return (
+    <SettingRow label={label}>
+      <Input
+        type="number"
+        min={min}
+        max={max}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          void commitDraft();
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            void commitDraft();
+          }
+
+          if (e.key === 'Escape') {
+            setDraft(value);
+          }
+        }}
+        className="w-24"
+      />
+    </SettingRow>
+  );
+}
+
 function SettingRow({
   label,
   children,
@@ -125,11 +200,7 @@ export function SettingsPage() {
     await invoke(IPC.SETTINGS_SET, { key, value });
   };
 
-  const updateNumericKey = async (
-    key: 'pomodoroDuration' | 'shortBreakDuration' | 'longBreakDuration' | 'longBreakInterval',
-    value: string,
-  ) => {
-    if (value.trim() === '') return;
+  const updateNumericKey = async (key: NumericSettingKey, value: string) => {
     await updateKey(key, value);
   };
 
@@ -142,38 +213,34 @@ export function SettingsPage() {
               <CardTitle className="text-sm font-medium">计时设置</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3 px-4 pb-4 pt-0">
-              <SettingRow label="番茄时长 (分钟)">
-                <Input
-                  type="number" min={1} max={120}
-                  value={readSetting(settings, 'pomodoroDuration', '25')}
-                  onChange={(e) => updateNumericKey('pomodoroDuration', e.target.value)}
-                  className="w-24"
-                />
-              </SettingRow>
-              <SettingRow label="短休息 (分钟)">
-                <Input
-                  type="number" min={1} max={30}
-                  value={readSetting(settings, 'shortBreakDuration', '5')}
-                  onChange={(e) => updateNumericKey('shortBreakDuration', e.target.value)}
-                  className="w-24"
-                />
-              </SettingRow>
-              <SettingRow label="长休息 (分钟)">
-                <Input
-                  type="number" min={1} max={60}
-                  value={readSetting(settings, 'longBreakDuration', '15')}
-                  onChange={(e) => updateNumericKey('longBreakDuration', e.target.value)}
-                  className="w-24"
-                />
-              </SettingRow>
-              <SettingRow label="长休息间隔 (番茄数)">
-                <Input
-                  type="number" min={1} max={10}
-                  value={readSetting(settings, 'longBreakInterval', '4')}
-                  onChange={(e) => updateNumericKey('longBreakInterval', e.target.value)}
-                  className="w-24"
-                />
-              </SettingRow>
+              <NumericSettingRow
+                label="番茄时长 (分钟)"
+                value={readSetting(settings, 'pomodoroDuration', '25')}
+                min={1}
+                max={120}
+                onCommit={(value) => updateNumericKey('pomodoroDuration', value)}
+              />
+              <NumericSettingRow
+                label="短休息 (分钟)"
+                value={readSetting(settings, 'shortBreakDuration', '5')}
+                min={1}
+                max={30}
+                onCommit={(value) => updateNumericKey('shortBreakDuration', value)}
+              />
+              <NumericSettingRow
+                label="长休息 (分钟)"
+                value={readSetting(settings, 'longBreakDuration', '15')}
+                min={1}
+                max={60}
+                onCommit={(value) => updateNumericKey('longBreakDuration', value)}
+              />
+              <NumericSettingRow
+                label="长休息间隔 (番茄数)"
+                value={readSetting(settings, 'longBreakInterval', '4')}
+                min={1}
+                max={10}
+                onCommit={(value) => updateNumericKey('longBreakInterval', value)}
+              />
             </CardContent>
           </Card>
 

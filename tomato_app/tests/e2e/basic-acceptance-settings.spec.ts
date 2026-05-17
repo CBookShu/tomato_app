@@ -14,6 +14,10 @@ test.describe('基础验收：设置持久化', () => {
     }, { settingsGetAllChannel: IPC.SETTINGS_GET_ALL });
   }
 
+  function getNumericSetting(page: Page, label: string) {
+    return page.getByText(label).locator('..').getByRole('spinbutton');
+  }
+
   test('修改番茄时长与暗色模式后，刷新应保留', async ({ page }) => {
     await page.getByRole('tab', { name: '设置' }).click();
 
@@ -60,6 +64,7 @@ test.describe('基础验收：设置持久化', () => {
     await expect(pomodoroInput).toHaveValue('25');
 
     await pomodoroInput.fill('32');
+    await pomodoroInput.press('Enter');
     await expect.poll(async () => {
       const persisted = await readSettings(page);
       return {
@@ -79,6 +84,67 @@ test.describe('基础验收：设置持久化', () => {
     const persistedSettings = await readSettings(page);
     expect(persistedSettings.pomodoroDuration).toBe('32');
     expect(persistedSettings.pomodoro_duration).toBe('31');
+  });
+
+  test('计时数字项在 blur 或 Enter 前不应写回，并会在提交后持久化', async ({ page }) => {
+    await page.getByRole('tab', { name: '设置' }).click();
+
+    const pomodoroInput = getNumericSetting(page, '番茄时长 (分钟)');
+    await expect(pomodoroInput).toHaveValue('25');
+    await expect(pomodoroInput).toHaveJSProperty('type', 'number');
+
+    await pomodoroInput.click();
+    await page.keyboard.press('ControlOrMeta+A');
+    await page.keyboard.type('30');
+    await expect(pomodoroInput).toHaveValue('30');
+
+    await page.waitForTimeout(200);
+    expect((await readSettings(page)).pomodoroDuration).toBe('25');
+
+    await page.keyboard.press('Enter');
+    await expect.poll(async () => (await readSettings(page)).pomodoroDuration).toBe('30');
+
+    const shortBreakInput = getNumericSetting(page, '短休息 (分钟)');
+    await shortBreakInput.click();
+    await page.keyboard.press('ControlOrMeta+A');
+    await page.keyboard.type('8');
+    await expect(shortBreakInput).toHaveValue('8');
+
+    await page.waitForTimeout(200);
+    expect((await readSettings(page)).shortBreakDuration).toBe('5');
+
+    await shortBreakInput.blur();
+    await expect.poll(async () => (await readSettings(page)).shortBreakDuration).toBe('8');
+  });
+
+  test('计时数字项在空值或非法值提交时应恢复到上一次合法值', async ({ page }) => {
+    await page.getByRole('tab', { name: '设置' }).click();
+
+    const longBreakInput = getNumericSetting(page, '长休息 (分钟)');
+    await expect(longBreakInput).toHaveValue('15');
+    await longBreakInput.click();
+    await page.keyboard.press('ControlOrMeta+A');
+    await page.keyboard.type('18');
+    await page.keyboard.press('Enter');
+    await expect.poll(async () => (await readSettings(page)).longBreakDuration).toBe('18');
+
+    await longBreakInput.click();
+    await page.keyboard.press('ControlOrMeta+A');
+    await page.keyboard.press('Backspace');
+    await expect(longBreakInput).toHaveValue('');
+    await longBreakInput.blur();
+    await expect(longBreakInput).toHaveValue('18');
+    expect((await readSettings(page)).longBreakDuration).toBe('18');
+
+    const longBreakIntervalInput = getNumericSetting(page, '长休息间隔 (番茄数)');
+    await expect(longBreakIntervalInput).toHaveValue('4');
+    await longBreakIntervalInput.click();
+    await page.keyboard.press('ControlOrMeta+A');
+    await page.keyboard.type('0');
+    await expect(longBreakIntervalInput).toHaveValue('0');
+    await page.keyboard.press('Enter');
+    await expect(longBreakIntervalInput).toHaveValue('4');
+    expect((await readSettings(page)).longBreakInterval).toBe('4');
   });
 
   test('设置页显示软件更新区块，种子化发布会显示为可用更新', async ({ page }) => {
