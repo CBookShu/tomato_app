@@ -1,5 +1,5 @@
-import { Locator, Page } from '@playwright/test';
-import { test, expect } from './fixtures';
+import { ElectronApplication, Locator, Page } from '@playwright/test';
+import { launchElectronApp, test, expect } from './fixtures';
 
 async function openTasksTab(page: Page): Promise<void> {
   await page.getByRole('tab', { name: '任务' }).click();
@@ -41,6 +41,17 @@ async function createTaskInGroup(page: Page, groupName: string, title: string): 
   await expect(page.getByTestId('task-item').filter({ hasText: title })).toBeVisible();
 }
 
+async function relaunchApp(app: ElectronApplication, userDataDir: string): Promise<{
+  app: ElectronApplication;
+  page: Page;
+}> {
+  await app.close();
+  const nextApp = await launchElectronApp(userDataDir);
+  const nextPage = await nextApp.firstWindow();
+  await nextPage.waitForLoadState('domcontentloaded');
+  return { app: nextApp, page: nextPage };
+}
+
 test.describe('Tasks', () => {
   test.beforeEach(async ({ page }) => {
     await openTasksTab(page);
@@ -50,39 +61,53 @@ test.describe('Tasks', () => {
     await expect(page.getByRole('button', { name: '新建分组' })).toBeVisible();
   });
 
-  test('creates and renames a group that persists after reload', async ({ page }) => {
-    await createGroup(page, '工作');
-    await page.reload();
-    await openTasksTab(page);
-    await expect(page.getByText('工作')).toBeVisible();
+  test('creates and renames a group that persists after app relaunch', async ({ page, electronApp, userDataDir }) => {
+    let currentApp = electronApp;
+    let currentPage = page;
 
-    await renameGroup(page, '工作', '项目');
-    await page.reload();
-    await openTasksTab(page);
-    await expect(page.getByText('项目')).toBeVisible();
+    await createGroup(currentPage, '工作');
+    ({ app: currentApp, page: currentPage } = await relaunchApp(currentApp, userDataDir));
+    await openTasksTab(currentPage);
+    await expect(currentPage.getByText('工作')).toBeVisible();
+
+    await renameGroup(currentPage, '工作', '项目');
+    ({ app: currentApp, page: currentPage } = await relaunchApp(currentApp, userDataDir));
+    await openTasksTab(currentPage);
+    await expect(currentPage.getByText('项目')).toBeVisible();
+
+    await currentApp.close();
   });
 
-  test('deletes a normal group, migrates its tasks to 未分组, and keeps task order', async ({ page }) => {
-    await createGroup(page, '工作');
-    await createTaskInGroup(page, '工作', 'Alpha');
-    await createTaskInGroup(page, '工作', 'Beta');
+  test('deletes a normal group, migrates its tasks to 未分组, and keeps task order after relaunch', async ({
+    page,
+    electronApp,
+    userDataDir,
+  }) => {
+    let currentApp = electronApp;
+    let currentPage = page;
 
-    const workRow = groupRow(page, '工作');
+    await createGroup(currentPage, '工作');
+    await createTaskInGroup(currentPage, '工作', 'Alpha');
+    await createTaskInGroup(currentPage, '工作', 'Beta');
+
+    const workRow = groupRow(currentPage, '工作');
     await workRow.getByRole('button', { name: '分组操作' }).click();
-    await page.getByRole('button', { name: '删除' }).click();
-    await page.getByRole('button', { name: '删除' }).click();
+    await currentPage.getByRole('button', { name: '删除' }).click();
+    await currentPage.getByRole('button', { name: '删除' }).click();
 
-    await expect(page.getByText('工作')).toHaveCount(0);
-    await expect(page.getByText('未分组')).toBeVisible();
+    await expect(currentPage.getByText('工作')).toHaveCount(0);
+    await expect(currentPage.getByText('未分组')).toBeVisible();
 
-    const taskTitles = await page.getByTestId('task-item').locator('span.flex-1').allTextContents();
+    const taskTitles = await currentPage.getByTestId('task-item').locator('span.flex-1').allTextContents();
     expect(taskTitles).toEqual(['Alpha', 'Beta']);
 
-    await page.reload();
-    await openTasksTab(page);
-    await expect(page.getByText('工作')).toHaveCount(0);
-    await expect(page.getByTestId('task-item').filter({ hasText: 'Alpha' })).toBeVisible();
-    await expect(page.getByTestId('task-item').filter({ hasText: 'Beta' })).toBeVisible();
+    ({ app: currentApp, page: currentPage } = await relaunchApp(currentApp, userDataDir));
+    await openTasksTab(currentPage);
+    await expect(currentPage.getByText('工作')).toHaveCount(0);
+    await expect(currentPage.getByTestId('task-item').filter({ hasText: 'Alpha' })).toBeVisible();
+    await expect(currentPage.getByTestId('task-item').filter({ hasText: 'Beta' })).toBeVisible();
+
+    await currentApp.close();
   });
 
   test('does not show delete controls for the default group', async ({ page }) => {

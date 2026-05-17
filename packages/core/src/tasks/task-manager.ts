@@ -223,15 +223,17 @@ export class TaskManager {
     }
 
     const tasks = await this.taskRepo.findByGroup(id);
-    const taskIdsByOrder = [
-      ...group.taskOrder,
-      ...tasks
-        .map((task) => task.id)
-        .filter((taskId) => !group.taskOrder.includes(taskId)),
-    ];
+    const tasksById = new Map(tasks.map((task) => [task.id, task]));
+    const orderedTasks = group.taskOrder
+      .map((taskId) => tasksById.get(taskId))
+      .filter((task): task is Task => Boolean(task));
+    const unorderedTasks = tasks.filter((task) => !group.taskOrder.includes(task.id));
 
-    for (const taskId of taskIdsByOrder) {
-      await this.moveTaskToGroup(taskId, DEFAULT_GROUP_ID);
+    for (const task of [...orderedTasks, ...unorderedTasks]) {
+      if (task.groupId !== id) {
+        continue;
+      }
+      await this.moveTaskToGroup(task.id, DEFAULT_GROUP_ID);
     }
 
     await this.groupRepo.delete(id);

@@ -197,6 +197,28 @@ describe('TaskManager', () => {
     expect(defaultGroup?.taskOrder).toEqual([defaultTask.id, movedTask1.id, movedTask2.id]);
   });
 
+  test('deleteGroup ignores stale taskOrder IDs and tasks no longer belonging to the group', async () => {
+    const defaultTask = await manager.createTask({ title: 'Existing default task' });
+    const sourceGroup = await manager.createGroup({ name: 'Source' });
+    const otherGroup = await manager.createGroup({ name: 'Other' });
+    const movedTask = await manager.createTask({ title: 'Move me', groupId: sourceGroup.id });
+    const otherGroupTask = await manager.createTask({ title: 'Stay put', groupId: otherGroup.id });
+
+    await groupRepo.update(sourceGroup.id, {
+      taskOrder: ['stale-task-id', movedTask.id, otherGroupTask.id],
+    });
+
+    await manager.deleteGroup(sourceGroup.id);
+
+    expect(await manager.getGroup(sourceGroup.id)).toBeNull();
+
+    const defaultGroup = await manager.getGroup('default');
+    expect(defaultGroup?.taskOrder).toEqual([defaultTask.id, movedTask.id]);
+
+    expect((await manager.getTask(movedTask.id))?.groupId).toBe('default');
+    expect((await manager.getTask(otherGroupTask.id))?.groupId).toBe(otherGroup.id);
+  });
+
   test('deleteGroup throws when trying to delete default group', async () => {
     await expect(manager.deleteGroup('default')).rejects.toThrow('Cannot delete the default group');
   });

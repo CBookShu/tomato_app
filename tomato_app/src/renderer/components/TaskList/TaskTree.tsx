@@ -28,19 +28,28 @@ export function TaskTree() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  const [createError, setCreateError] = useState<string | null>(null);
   const [deleteGroupId, setDeleteGroupId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const handleCreateGroup = async () => {
     const name = newGroupName.trim();
     if (name) {
-      await createGroupAndRehydrate({
-        invoke,
-        setTasks,
-        setGroups,
-        input: { name },
-      });
-      setNewGroupName('');
-      setDialogOpen(false);
+      setCreateError(null);
+      try {
+        await createGroupAndRehydrate({
+          invoke,
+          setTasks,
+          setGroups,
+          input: { name },
+        });
+        setNewGroupName('');
+        setDialogOpen(false);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '创建分组失败';
+        console.error('Failed to create group:', error);
+        setCreateError(message);
+      }
     }
   };
 
@@ -57,13 +66,20 @@ export function TaskTree() {
   const handleDeleteGroup = async () => {
     if (!deleteGroupId) return;
 
-    await deleteGroupAndRehydrate({
-      invoke,
-      setTasks,
-      setGroups,
-      id: deleteGroupId,
-    });
-    setDeleteGroupId(null);
+    setDeleteError(null);
+    try {
+      await deleteGroupAndRehydrate({
+        invoke,
+        setTasks,
+        setGroups,
+        id: deleteGroupId,
+      });
+      setDeleteGroupId(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '删除分组失败';
+      console.error('Failed to delete group:', error);
+      setDeleteError(message);
+    }
   };
 
   const deleteGroupName = deleteGroupId ? groups.find((group) => group.id === deleteGroupId)?.name ?? '' : '';
@@ -82,7 +98,10 @@ export function TaskTree() {
             group={group}
             tasks={getTasksByGroup(group.id)}
             onRename={(name) => handleRenameGroup(group.id, name)}
-            onDelete={() => setDeleteGroupId(group.id)}
+            onDelete={() => {
+              setDeleteGroupId(group.id);
+              setDeleteError(null);
+            }}
           />
         ))}
       </div>
@@ -92,14 +111,25 @@ export function TaskTree() {
           variant="ghost"
           size="sm"
           className="w-full justify-start text-gray-500"
-          onClick={() => setDialogOpen(true)}
+          onClick={() => {
+            setDialogOpen(true);
+            setCreateError(null);
+          }}
         >
           <Plus className="h-4 w-4 mr-1" />
           新建分组
         </Button>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) {
+            setCreateError(null);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>新建分组</DialogTitle>
@@ -108,7 +138,10 @@ export function TaskTree() {
             <Input
               placeholder="输入分组名称"
               value={newGroupName}
-              onChange={(e) => setNewGroupName(e.target.value)}
+              onChange={(e) => {
+                setNewGroupName(e.target.value);
+                setCreateError(null);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   void handleCreateGroup();
@@ -116,6 +149,11 @@ export function TaskTree() {
               }}
               autoFocus
             />
+            {createError && (
+              <p data-testid="task-group-create-error" className="mt-2 text-sm text-red-500">
+                {createError}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setDialogOpen(false)}>
@@ -126,7 +164,15 @@ export function TaskTree() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deleteGroupId} onOpenChange={(open) => !open && setDeleteGroupId(null)}>
+      <Dialog
+        open={!!deleteGroupId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteGroupId(null);
+            setDeleteError(null);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>删除任务组</DialogTitle>
@@ -135,6 +181,11 @@ export function TaskTree() {
             确定要删除「{deleteGroupName}」及其包含的 {deleteTaskCount} 个任务吗？
           </DialogDescription>
           <p className="text-sm text-muted-foreground">组内任务会迁移到「未分组」。</p>
+          {deleteError && (
+            <p data-testid="task-group-delete-error" className="text-sm text-red-500">
+              {deleteError}
+            </p>
+          )}
           <DialogFooter>
             <Button variant="ghost" onClick={() => setDeleteGroupId(null)}>
               取消
