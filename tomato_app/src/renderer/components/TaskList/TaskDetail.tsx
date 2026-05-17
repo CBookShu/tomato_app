@@ -67,7 +67,7 @@ export function TaskDetail() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 p-6 overflow-y-auto">
-      <div className="flex-1 flex flex-col min-h-0 max-w-2xl">
+      <div className="flex-1 flex w-full min-w-0 flex-col min-h-0">
         <div className="flex items-start justify-between mb-4">
           <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
             {task.title}

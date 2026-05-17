@@ -50,7 +50,15 @@ export interface SyncServiceStatus {
   conflictBranch: string | null;
 }
 
-const defaultBindingStore = new RepositoryBindingStore() as unknown as BindingStore;
+let defaultBindingStore: BindingStore | null = null;
+
+function getDefaultBindingStore(): BindingStore {
+  if (!defaultBindingStore) {
+    defaultBindingStore = new RepositoryBindingStore() as unknown as BindingStore;
+  }
+
+  return defaultBindingStore;
+}
 
 function normalizeBinding(binding: BindingRecord | null): BindingRecord | null {
   if (!binding) {
@@ -102,7 +110,7 @@ export class SyncService {
   constructor(private readonly deps: SyncServiceDeps = {}) {}
 
   private get bindingStore(): BindingStore {
-    return this.deps.bindingStore ?? defaultBindingStore;
+    return this.deps.bindingStore ?? getDefaultBindingStore();
   }
 
   private get dataDir(): string {

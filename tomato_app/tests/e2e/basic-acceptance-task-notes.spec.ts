@@ -86,4 +86,58 @@ test.describe('基础验收：任务与笔记', () => {
     await titleEditor.press('Escape');
     await expect(taskItem.getByText('新任务')).toBeVisible();
   });
+
+  test('宽屏任务详情区应充分利用空间，且有序列表编号在预览和刷新后保持可见', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+
+    await createDefaultTask(page, '宽屏任务：阅读区');
+
+    const taskItem = page.getByTestId('task-item').filter({ hasText: '宽屏任务：阅读区' }).first();
+    await taskItem.click();
+    await expect(page.getByRole('heading', { name: '宽屏任务：阅读区' })).toBeVisible();
+
+    const notesPanel = page.getByTestId('task-notes-panel');
+    await expect.poll(async () => {
+      const box = await notesPanel.boundingBox();
+      return box?.width ?? 0;
+    }).toBeGreaterThan(800);
+
+    const notesEditor = page.locator('textarea[placeholder="添加笔记..."]');
+    await expect(notesEditor).toBeVisible();
+    await notesEditor.click();
+    await page.keyboard.type('1. 第一项\n2. 第二项\n3. 第三项\n\n补充说明');
+    await page.getByRole('heading', { name: '宽屏任务：阅读区' }).click();
+    await expect(notesEditor).toHaveValue(/补充说明/);
+    const savingIndicator = page.getByTestId('task-notes-saving');
+    try {
+      await savingIndicator.waitFor({ state: 'visible', timeout: 3000 });
+      await expect(savingIndicator).toBeHidden();
+    } catch {
+      await expect(savingIndicator).toHaveCount(0);
+    }
+    await expect(notesPanel.locator('.wmde-markdown')).toContainText('补充说明');
+    const orderedList = notesPanel.locator('.wmde-markdown ol').first();
+    await expect(orderedList).toBeVisible();
+    await expect(orderedList).toHaveCSS('list-style-type', 'decimal');
+
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+    await page.getByRole('tab', { name: '任务' }).click();
+
+    const persistedTask = page.getByTestId('task-item').filter({ hasText: '宽屏任务：阅读区' }).first();
+    await persistedTask.click();
+    await expect(page.getByRole('heading', { name: '宽屏任务：阅读区' })).toBeVisible();
+
+    await expect.poll(async () => {
+      const box = await page.getByTestId('task-notes-panel').boundingBox();
+      return box?.width ?? 0;
+    }).toBeGreaterThan(800);
+
+    await expect(page.getByTestId('task-notes-panel').locator('.wmde-markdown')).toContainText('补充说明');
+    const persistedOrderedList = page.getByTestId('task-notes-panel').locator('.wmde-markdown ol').first();
+    await expect(persistedOrderedList).toBeVisible();
+    await expect(persistedOrderedList).toHaveCSS('list-style-type', 'decimal');
+  });
 });

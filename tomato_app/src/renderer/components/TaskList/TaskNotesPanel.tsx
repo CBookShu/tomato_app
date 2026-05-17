@@ -20,12 +20,14 @@ function TaskNotesPanel({ taskId }: TaskNotesPanelProps) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const notesSessionRef = useRef(0);
   const saveRequestRef = useRef(0);
+  const hasLocalEditsRef = useRef(false);
   const debouncedNotes = useDebounce(notes, AUTO_SAVE_DELAY_MS);
 
   useEffect(() => {
     let cancelled = false;
     ++notesSessionRef.current;
     saveRequestRef.current = 0;
+    hasLocalEditsRef.current = false;
     setNotes('');
     setLastSavedNotes(null);
     setIsNotesLoaded(false);
@@ -40,8 +42,10 @@ function TaskNotesPanel({ taskId }: TaskNotesPanelProps) {
         if (cancelled) {
           return;
         }
-        setNotes(currentNotes);
-        setLastSavedNotes(currentNotes);
+        if (!hasLocalEditsRef.current) {
+          setNotes(currentNotes);
+          setLastSavedNotes(currentNotes);
+        }
       } catch (error) {
         if (cancelled) {
           return;
@@ -114,16 +118,34 @@ function TaskNotesPanel({ taskId }: TaskNotesPanelProps) {
         )}
       </div>
 
-      <div className="flex-1 min-h-0 border-t border-gray-200 pt-4 dark:border-gray-700" data-color-mode="auto">
-        <MDEditor
-          value={notes}
-          onChange={(val) => setNotes(val || '')}
-          preview="live"
-          height="100%"
-          textareaProps={{
-            placeholder: '添加笔记...',
-          }}
-        />
+      <div
+        className="flex-1 min-h-0 border-t border-gray-200 pt-4 dark:border-gray-700 [&_.wmde-markdown_ol]:list-decimal [&_.wmde-markdown_ol]:pl-6 [&_.wmde-markdown_ul]:list-disc [&_.wmde-markdown_ul]:pl-6 [&_.wmde-markdown_li]:my-1 [&_.wmde-markdown_p]:my-2"
+        data-color-mode="auto"
+      >
+        {!isNotesLoaded ? (
+          <div
+            data-testid="task-notes-loading"
+            className="flex min-h-[12rem] items-center justify-center text-sm text-gray-500 dark:text-gray-400"
+          >
+            加载笔记中...
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <textarea
+              className="min-h-[12rem] w-full resize-y rounded-md border border-gray-300 bg-white px-3 py-2 text-sm leading-6 text-gray-900 shadow-sm outline-none transition focus:border-tomato focus:ring-2 focus:ring-tomato/50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+              value={notes}
+              onChange={(event) => {
+                hasLocalEditsRef.current = true;
+                setNotes(event.target.value);
+              }}
+              placeholder="添加笔记..."
+              spellCheck={false}
+            />
+            <div className="rounded-md border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+              <MDEditor.Markdown source={notes} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

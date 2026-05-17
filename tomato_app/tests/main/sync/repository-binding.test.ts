@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 vi.mock('electron', () => ({
@@ -82,5 +82,32 @@ describe('RepositoryBindingStore', () => {
     await expect(store.loadBinding()).resolves.toEqual(binding);
     await expect(readFile(bindingPath, 'utf8')).resolves.toContain('"remoteUrl": "https://example.com/team/tomato.git"');
     await expect(access(legacyPath)).rejects.toThrow();
+  });
+
+  test('prefers the new tomato-data/.meta binding when both new and legacy files exist', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'tomato-binding-'));
+    tempDirs.push(dir);
+
+    const store = new RepositoryBindingStore(dir);
+    const newBinding = createRepositoryBinding(
+      'https://example.com/team/tomato.git',
+      'main',
+      new Date('2026-05-13T12:00:00.000Z'),
+    );
+    const legacyBinding = createRepositoryBinding(
+      'https://example.com/team/tomato.git',
+      'develop',
+      new Date('2026-05-13T12:05:00.000Z'),
+    );
+    const bindingPath = path.join(dir, 'tomato-data', '.meta', 'repository-binding.json');
+    const legacyPath = path.join(dir, 'repository-binding.json');
+
+    await mkdir(path.dirname(bindingPath), { recursive: true });
+    await writeFile(bindingPath, `${JSON.stringify(newBinding, null, 2)}\n`, 'utf8');
+    await writeFile(legacyPath, `${JSON.stringify(legacyBinding, null, 2)}\n`, 'utf8');
+
+    await expect(store.loadBinding()).resolves.toEqual(newBinding);
+    await expect(readFile(bindingPath, 'utf8')).resolves.toContain('"remoteBranch": "main"');
+    await expect(readFile(legacyPath, 'utf8')).resolves.toContain('"remoteBranch": "develop"');
   });
 });
