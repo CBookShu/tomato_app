@@ -3,6 +3,8 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 const BINDING_FILE_NAME = 'repository-binding.json';
+const DATA_DIR_NAME = 'tomato-data';
+const META_DIR_NAME = '.meta';
 
 export interface RepositoryBinding {
   remoteUrl: string;
@@ -71,32 +73,58 @@ export function createRepositoryBindingFromOptions(
 }
 
 export function getRepositoryBindingPath(userDataDir: string = app.getPath('userData')): string {
+  return path.join(userDataDir, DATA_DIR_NAME, META_DIR_NAME, BINDING_FILE_NAME);
+}
+
+function getLegacyRepositoryBindingPath(userDataDir: string): string {
   return path.join(userDataDir, BINDING_FILE_NAME);
+}
+
+async function readBindingFile(filePath: string): Promise<RepositoryBinding | null> {
+  try {
+    const raw = await fs.readFile(filePath, 'utf8');
+    return JSON.parse(raw) as RepositoryBinding;
+  } catch {
+    return null;
+  }
+}
+
+async function removeFileIfExists(filePath: string): Promise<void> {
+  try {
+    await fs.unlink(filePath);
+  } catch {
+    // Ignore missing file.
+  }
 }
 
 export class RepositoryBindingStore {
   constructor(private readonly userDataDir: string = app.getPath('userData')) {}
 
   async loadBinding(): Promise<RepositoryBinding | null> {
-    try {
-      const filePath = getRepositoryBindingPath(this.userDataDir);
-      const raw = await fs.readFile(filePath, 'utf8');
-      return JSON.parse(raw) as RepositoryBinding;
-    } catch {
+    const filePath = getRepositoryBindingPath(this.userDataDir);
+    const binding = await readBindingFile(filePath);
+    if (binding) {
+      return binding;
+    }
+
+    const legacyPath = getLegacyRepositoryBindingPath(this.userDataDir);
+    const legacyBinding = await readBindingFile(legacyPath);
+    if (!legacyBinding) {
       return null;
     }
+
+    await this.saveBinding(legacyBinding);
+    await removeFileIfExists(legacyPath);
+    return legacyBinding;
   }
 
   async saveBinding(binding: RepositoryBinding): Promise<void> {
-    await fs.mkdir(this.userDataDir, { recursive: true });
+    await fs.mkdir(path.dirname(getRepositoryBindingPath(this.userDataDir)), { recursive: true });
     await fs.writeFile(getRepositoryBindingPath(this.userDataDir), `${JSON.stringify(binding, null, 2)}\n`, 'utf8');
   }
 
   async clearBinding(): Promise<void> {
-    try {
-      await fs.unlink(getRepositoryBindingPath(this.userDataDir));
-    } catch {
-      // Ignore missing file.
-    }
+    await removeFileIfExists(getRepositoryBindingPath(this.userDataDir));
+    await removeFileIfExists(getLegacyRepositoryBindingPath(this.userDataDir));
   }
 }

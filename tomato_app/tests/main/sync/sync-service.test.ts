@@ -1,4 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { access, mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { RepositoryBindingStore, createRepositoryBinding } from '../../../src/main/sync/repository-binding.js';
 import { SyncService } from '../../../src/main/sync/sync-service.js';
 
 vi.mock('electron', () => ({
@@ -11,6 +15,7 @@ vi.mock('electron', () => ({
 
 describe('SyncService', () => {
   const currentTime = new Date('2026-05-14T08:00:00.000Z');
+  const tempDirs: string[] = [];
 
   let storedBinding: {
     remoteUrl: string;
@@ -98,6 +103,10 @@ describe('SyncService', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  afterEach(async () => {
+    await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
   });
 
   test('bindRepository stores remote URL and branch and pushes initial local state without OAuth', async () => {
@@ -269,6 +278,71 @@ describe('SyncService', () => {
       remoteBranch: null,
       syncStatus: 'idle',
     });
+  });
+
+  test('getStatus restores binding metadata from tomato-data/.meta on startup', async () => {
+    const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'tomato-sync-user-data-'));
+    tempDirs.push(userDataDir);
+
+    const bindingStore = new RepositoryBindingStore(userDataDir);
+    const binding = createRepositoryBinding(
+      'https://example.com/team/tomato.git',
+      'main',
+      new Date('2026-05-14T07:50:00.000Z'),
+    );
+    await bindingStore.saveBinding(binding);
+
+    const service = new SyncService({
+      bindingStore,
+      gitFactory,
+      syncManagerFactory,
+      storage: {} as any,
+      dataDirProvider: () => path.join(userDataDir, 'tomato-data'),
+    } as any);
+
+    const status = await service.getStatus();
+
+    expect(status).toMatchObject({
+      isLoggedIn: true,
+      isBound: true,
+      remoteUrl: 'https://example.com/team/tomato.git',
+      remoteLabel: 'https://example.com/team/tomato.git',
+      repositoryUrl: 'https://example.com/team/tomato.git',
+      remoteBranch: 'main',
+      boundAt: '2026-05-14T07:50:00.000Z',
+      updatedAt: '2026-05-14T07:50:00.000Z',
+      lastSyncTime: '2026-05-14T07:50:00.000Z',
+      syncStatus: 'idle',
+      error: null,
+      conflictBranch: null,
+    });
+  });
+
+  test('unbindRepository removes the persisted binding file under tomato-data/.meta', async () => {
+    const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'tomato-sync-user-data-'));
+    tempDirs.push(userDataDir);
+
+    const bindingStore = new RepositoryBindingStore(userDataDir);
+    const binding = createRepositoryBinding(
+      'https://example.com/team/tomato.git',
+      'main',
+      new Date('2026-05-14T07:50:00.000Z'),
+    );
+    const bindingPath = path.join(userDataDir, 'tomato-data', '.meta', 'repository-binding.json');
+    await bindingStore.saveBinding(binding);
+
+    const service = new SyncService({
+      bindingStore,
+      gitFactory,
+      syncManagerFactory,
+      storage: {} as any,
+      dataDirProvider: () => path.join(userDataDir, 'tomato-data'),
+    } as any);
+
+    await service.unbindRepository();
+
+    await expect(access(bindingPath)).rejects.toThrow();
+    await expect(bindingStore.loadBinding()).resolves.toBeNull();
   });
 
   test('seedTestState hydrates generic remote metadata for test flows', async () => {

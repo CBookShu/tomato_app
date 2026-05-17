@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 vi.mock('electron', () => ({
@@ -40,18 +40,47 @@ describe('parseRemoteBinding', () => {
 });
 
 describe('RepositoryBindingStore', () => {
-  test('saves, loads, and clears binding metadata', async () => {
+  test('saves, loads, and clears binding metadata under tomato-data/.meta', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'tomato-binding-'));
     tempDirs.push(dir);
 
     const store = new RepositoryBindingStore(dir);
-    const binding = createRepositoryBinding('https://example.com/team/tomato.git', 'main', new Date('2026-05-13T12:00:00.000Z'));
+    const binding = createRepositoryBinding(
+      'https://example.com/team/tomato.git',
+      'main',
+      new Date('2026-05-13T12:00:00.000Z'),
+    );
+    const bindingPath = path.join(dir, 'tomato-data', '.meta', 'repository-binding.json');
+    const legacyPath = path.join(dir, 'repository-binding.json');
 
     await store.saveBinding(binding);
 
+    await expect(readFile(bindingPath, 'utf8')).resolves.toContain('"remoteBranch": "main"');
+    await expect(access(legacyPath)).rejects.toThrow();
     await expect(store.loadBinding()).resolves.toEqual(binding);
 
     await store.clearBinding();
     await expect(store.loadBinding()).resolves.toBeNull();
+    await expect(access(bindingPath)).rejects.toThrow();
+  });
+
+  test('loads a legacy root binding file and migrates it into tomato-data/.meta', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'tomato-binding-'));
+    tempDirs.push(dir);
+
+    const store = new RepositoryBindingStore(dir);
+    const binding = createRepositoryBinding(
+      'https://example.com/team/tomato.git',
+      'main',
+      new Date('2026-05-13T12:00:00.000Z'),
+    );
+    const bindingPath = path.join(dir, 'tomato-data', '.meta', 'repository-binding.json');
+    const legacyPath = path.join(dir, 'repository-binding.json');
+
+    await writeFile(legacyPath, `${JSON.stringify(binding, null, 2)}\n`, 'utf8');
+
+    await expect(store.loadBinding()).resolves.toEqual(binding);
+    await expect(readFile(bindingPath, 'utf8')).resolves.toContain('"remoteUrl": "https://example.com/team/tomato.git"');
+    await expect(access(legacyPath)).rejects.toThrow();
   });
 });
