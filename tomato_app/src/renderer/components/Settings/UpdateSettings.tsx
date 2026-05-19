@@ -33,6 +33,10 @@ export function UpdateSettings() {
   const openRelease = useUpdateStore((s) => s.openRelease);
 
   useEffect(() => {
+    if (currentVersion) {
+      return;
+    }
+
     async function init() {
       try {
         await getStatus();
@@ -42,7 +46,7 @@ export function UpdateSettings() {
     }
 
     init();
-  }, [getStatus]);
+  }, [currentVersion, getStatus]);
 
   const handlePrimaryAction = async () => {
     try {

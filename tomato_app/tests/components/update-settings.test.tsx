@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { appVersion } from '../test-version.js';
 
 const updateStoreMock = vi.hoisted(() => ({
   state: {
@@ -28,7 +29,7 @@ describe('UpdateSettings', () => {
   test('renders the update card fields and button label for an idle snapshot', () => {
     Object.assign(updateStoreMock.state, {
       status: 'idle',
-      currentVersion: '0.1.0',
+      currentVersion: appVersion,
       latestVersion: null,
       releaseTag: null,
       releaseName: null,
@@ -41,7 +42,7 @@ describe('UpdateSettings', () => {
     const markup = renderToStaticMarkup(<UpdateSettings />);
 
     expect(markup).toContain('当前版本');
-    expect(markup).toContain('0.1.0');
+    expect(markup).toContain(appVersion);
     expect(markup).toContain('最新版本');
     expect(markup).toContain('尚未检查');
     expect(markup).toContain('检查状态');
@@ -51,7 +52,7 @@ describe('UpdateSettings', () => {
   test('renders the available-release state with the open-release action', () => {
     Object.assign(updateStoreMock.state, {
       status: 'available',
-      currentVersion: '0.1.0',
+      currentVersion: appVersion,
       latestVersion: '0.2.0',
       releaseTag: 'v0.2.0',
       releaseName: 'Tomato 0.2.0',

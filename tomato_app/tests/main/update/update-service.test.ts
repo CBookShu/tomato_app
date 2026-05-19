@@ -2,13 +2,14 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { appVersion } from '../../test-version.js';
 
 const openExternal = vi.hoisted(() => vi.fn());
 
 vi.mock('electron', () => ({
   app: {
     getPath: vi.fn(() => '/tmp/tomato-user-data'),
-    getVersion: vi.fn(() => '0.1.0'),
+    getVersion: vi.fn(() => appVersion),
   },
   shell: {
     openExternal,
@@ -64,7 +65,7 @@ describe('UpdateService', () => {
 
     expect(firstStatus).toMatchObject({
       status: 'idle',
-      currentVersion: '0.1.0',
+      currentVersion: appVersion,
       latestVersion: null,
       releaseTag: null,
       releaseName: null,
@@ -76,7 +77,7 @@ describe('UpdateService', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(firstCheck).toMatchObject({
       status: 'available',
-      currentVersion: '0.1.0',
+      currentVersion: appVersion,
       latestVersion: '0.2.0',
       releaseTag: 'v0.2.0',
       releaseName: 'Tomato 0.2.0',

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { useUpdateStore } from '../../src/renderer/stores/update-store.js';
+import { appVersion } from '../test-version.js';
 
 const createUpdateApi = () => ({
   getStatus: vi.fn(),
@@ -9,7 +10,7 @@ const createUpdateApi = () => ({
 
 const baseSnapshot = {
   status: 'idle' as const,
-  currentVersion: '0.1.0',
+  currentVersion: appVersion,
   latestVersion: null,
   releaseTag: null,
   releaseName: null,
@@ -48,7 +49,7 @@ describe('updateStore', () => {
     updateApi.getStatus.mockResolvedValue({
       ...baseSnapshot,
       status: 'up-to-date',
-      latestVersion: '0.1.0',
+      latestVersion: appVersion,
       lastCheckedAt: '2026-05-16T08:00:00.000Z',
     });
 
@@ -57,8 +58,8 @@ describe('updateStore', () => {
     expect(updateApi.getStatus).toHaveBeenCalledTimes(1);
     expect(useUpdateStore.getState()).toMatchObject({
       status: 'up-to-date',
-      currentVersion: '0.1.0',
-      latestVersion: '0.1.0',
+      currentVersion: appVersion,
+      latestVersion: appVersion,
       lastCheckedAt: '2026-05-16T08:00:00.000Z',
       error: null,
     });
@@ -81,7 +82,7 @@ describe('updateStore', () => {
     expect(updateApi.checkForUpdates).toHaveBeenCalledWith({ force: true });
     expect(useUpdateStore.getState()).toMatchObject({
       status: 'available',
-      currentVersion: '0.1.0',
+      currentVersion: appVersion,
       latestVersion: '0.2.0',
       releaseTag: 'v0.2.0',
       releaseName: 'Tomato 0.2.0',

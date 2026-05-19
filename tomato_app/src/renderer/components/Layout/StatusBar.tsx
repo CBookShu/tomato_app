@@ -1,7 +1,8 @@
+import { useEffect, useMemo } from 'react';
 import { useTimerStore } from '@/stores/timer-store.js';
 import { useStatsStore } from '@/stores/stats-store.js';
 import { useTaskStore } from '@/stores/task-store.js';
-import { useMemo } from 'react';
+import { useUpdateStore } from '@/stores/update-store.js';
 
 type TimerStatus = 'idle' | 'working' | 'paused' | 'breaking' | 'long-break';
 
@@ -35,10 +36,20 @@ export function StatusBar({ onNavigateToTasks }: StatusBarProps) {
   const todayStats = useStatsStore((s) => s.today);
   const selectTask = useTaskStore((s) => s.selectTask);
   const tasks = useTaskStore((s) => s.tasks);
+  const currentVersion = useUpdateStore((s) => s.currentVersion);
+  const getUpdateStatus = useUpdateStore((s) => s.getStatus);
   const currentTask = tasks.find(t => t.id === currentTaskId);
 
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.idle;
   const showTime = status !== 'idle' && remainingTime > 0;
+
+  useEffect(() => {
+    if (currentVersion) {
+      return;
+    }
+
+    void getUpdateStatus().catch(() => {});
+  }, [currentVersion, getUpdateStatus]);
 
   // Use useMemo to format time safely
   const formattedTime = useMemo(() => formatTime(remainingTime), [remainingTime]);
@@ -55,7 +66,9 @@ export function StatusBar({ onNavigateToTasks }: StatusBarProps) {
       className="h-8 px-4 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-xs"
       data-testid="status-bar"
     >
-      <span className="text-gray-500 dark:text-gray-400">Tomato v0.1.0</span>
+      <span className="text-gray-500 dark:text-gray-400">
+        Tomato{currentVersion ? ` v${currentVersion}` : ''}
+      </span>
 
       <div className="flex items-center gap-4">
         <span className="text-gray-500 dark:text-gray-400">
